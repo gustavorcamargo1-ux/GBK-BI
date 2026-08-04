@@ -1562,17 +1562,7 @@ textarea#tf-desc{min-height:170px !important;height:170px;max-height:50vh;resize
             </div>
           </div>
           <div id="fab-audit-summary" style="display:none" class="confront-summary"></div>
-          <!-- MODAL VÍNCULO MANUAL -->
-      <div id="fab-vinculo-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:99999;align-items:center;justify-content:center">
-        <div style="background:var(--card-bg);border-radius:12px;width:min(620px,95vw);padding:24px;position:relative;max-height:85vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.4);border:1px solid var(--border)">
-          <button onclick="document.getElementById('fab-vinculo-modal').style.display='none'" style="position:absolute;top:12px;right:14px;background:none;border:none;font-size:18px;cursor:pointer;color:var(--muted)">✕</button>
-          <h3 style="margin-bottom:4px"><i class="fa-solid fa-link"></i> Vincular produto ao fabricante</h3>
-          <p id="fab-vinculo-sku" class="muted" style="font-size:12px;margin-bottom:12px"></p>
-          <input id="fab-vinculo-search" type="text" placeholder="Buscar na tabela do fabricante…" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);font-size:13px;margin-bottom:8px" oninput="FabTabelas._buscarVinculo(this.value)">
-          <div id="fab-vinculo-lista" style="max-height:320px;overflow-y:auto;border:1px solid var(--border);border-radius:6px"></div>
-        </div>
-      </div>
-      <!-- TABELA DO FABRICANTE -->
+          <!-- TABELA DO FABRICANTE -->
           <div id="fab-tabela-fab" style="display:none;margin-bottom:16px">
             <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
               <b style="font-size:13px"><i class="fa-solid fa-table"></i> Tabela do Fabricante</b>
@@ -6434,10 +6424,10 @@ const FabTabelas = {
       ? this._produtos.filter(p => p.descricao.toLowerCase().includes(q.toLowerCase()) || p.ean.includes(q))
       : this._produtos;
     lista.innerHTML = prods.slice(0,50).map(p => `
-      <div style="padding:12px 14px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:flex-start;gap:12px">
+      <div style="padding:12px 14px;border-bottom:1px solid #333;display:flex;justify-content:space-between;align-items:flex-start;gap:12px">
         <div style="flex:1;min-width:0">
-          <div style="font-size:13px;font-weight:600;line-height:1.4;word-break:break-word">${p.descricao}</div>
-          <div style="font-size:11px;color:var(--muted);margin-top:2px">EAN: ${p.ean} &nbsp;·&nbsp; <b>R$ ${p.preco.toFixed(2)}</b></div>
+          <div style="font-size:13px;font-weight:600;line-height:1.4;word-break:break-word;color:#fff">${p.descricao}</div>
+          <div style="font-size:11px;color:#999;margin-top:3px">EAN: ${p.ean} &nbsp;·&nbsp; <b style="color:#f7a11e">R$ ${p.preco.toFixed(2)}</b></div>
         </div>
         <button class="primary-btn sm" style="flex-shrink:0" onclick="FabTabelas._salvarVinculo('${p.ean}')">Vincular</button>
       </div>`).join('');
@@ -7361,5 +7351,16 @@ window.addEventListener('DOMContentLoaded',()=>Auth.start());
 
 </script>
 <script>setTimeout(function(){var n=document.getElementById("nav"); if(n&&!n.dataset.grouped) n.style.opacity="1";},2500);</script>
+
+<!-- MODAL VÍNCULO FABRICANTE — fora de qualquer container -->
+<div id="fab-vinculo-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:999999;align-items:center;justify-content:center">
+  <div style="background:#1e1e1e;border-radius:14px;width:min(640px,96vw);padding:28px;position:relative;max-height:88vh;overflow-y:auto;box-shadow:0 24px 80px rgba(0,0,0,.6);border:1px solid #444">
+    <button onclick="document.getElementById('fab-vinculo-modal').style.display='none'" style="position:absolute;top:14px;right:16px;background:none;border:none;font-size:20px;cursor:pointer;color:#aaa;line-height:1">✕</button>
+    <h3 style="margin-bottom:4px;color:#fff"><i class="fa-solid fa-link"></i> Vincular produto ao fabricante</h3>
+    <p id="fab-vinculo-sku" style="font-size:12px;color:#aaa;margin-bottom:14px"></p>
+    <input id="fab-vinculo-search" type="text" placeholder="Buscar na tabela do fabricante…" style="width:100%;padding:10px;border:1px solid #555;border-radius:8px;background:#2a2a2a;color:#fff;font-size:13px;margin-bottom:10px;box-sizing:border-box" oninput="FabTabelas._buscarVinculo(this.value)">
+    <div id="fab-vinculo-lista" style="max-height:360px;overflow-y:auto;border:1px solid #444;border-radius:8px;background:#181818"></div>
+  </div>
+</div>
 </body>
 </html>
