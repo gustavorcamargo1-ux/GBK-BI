@@ -1563,8 +1563,8 @@ textarea#tf-desc{min-height:170px !important;height:170px;max-height:50vh;resize
           </div>
           <div id="fab-audit-summary" style="display:none" class="confront-summary"></div>
           <!-- MODAL VÍNCULO MANUAL -->
-      <div id="fab-vinculo-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9001;align-items:center;justify-content:center">
-        <div style="background:var(--card-bg);border-radius:12px;width:min(560px,95vw);padding:24px;position:relative;max-height:80vh;overflow-y:auto">
+      <div id="fab-vinculo-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:99999;align-items:center;justify-content:center">
+        <div style="background:var(--card-bg);border-radius:12px;width:min(620px,95vw);padding:24px;position:relative;max-height:85vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.4);border:1px solid var(--border)">
           <button onclick="document.getElementById('fab-vinculo-modal').style.display='none'" style="position:absolute;top:12px;right:14px;background:none;border:none;font-size:18px;cursor:pointer;color:var(--muted)">✕</button>
           <h3 style="margin-bottom:4px"><i class="fa-solid fa-link"></i> Vincular produto ao fabricante</h3>
           <p id="fab-vinculo-sku" class="muted" style="font-size:12px;margin-bottom:12px"></p>
@@ -6351,7 +6351,7 @@ const FabTabelas = {
       return `<tr>
         <td><input type="checkbox" class="fab-row-chk" data-sku="${r.sku}" ${checked} onchange="FabTabelas._onChkRow(this)"></td>
         <td class="mono" style="font-size:12px">${r.sku}</td>
-        <td style="max-width:160px;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${r.produto}">${r.produto}</td>
+        <td style="max-width:220px;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${r.produto}">${r.produto}</td>
         <td style="font-size:11px;color:var(--muted)">${r.marca||'—'}</td>
         <td class="mono" style="font-size:11px">${r.ean||'—'}</td>
         <td class="num">${r.precoTiny?U.brl(r.precoTiny):'<span class="muted">—</span>'}</td>
@@ -6434,12 +6434,12 @@ const FabTabelas = {
       ? this._produtos.filter(p => p.descricao.toLowerCase().includes(q.toLowerCase()) || p.ean.includes(q))
       : this._produtos;
     lista.innerHTML = prods.slice(0,50).map(p => `
-      <div style="padding:10px 12px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:8px">
-        <div>
-          <div style="font-size:13px;font-weight:600">${p.descricao}</div>
-          <div style="font-size:11px;color:var(--muted)">EAN: ${p.ean} · R$ ${p.preco.toFixed(2)}</div>
+      <div style="padding:12px 14px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:flex-start;gap:12px">
+        <div style="flex:1;min-width:0">
+          <div style="font-size:13px;font-weight:600;line-height:1.4;word-break:break-word">${p.descricao}</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:2px">EAN: ${p.ean} &nbsp;·&nbsp; <b>R$ ${p.preco.toFixed(2)}</b></div>
         </div>
-        <button class="primary-btn sm" onclick="FabTabelas._salvarVinculo('${p.ean}')">Vincular</button>
+        <button class="primary-btn sm" style="flex-shrink:0" onclick="FabTabelas._salvarVinculo('${p.ean}')">Vincular</button>
       </div>`).join('');
     if (!prods.length) lista.innerHTML = '<p class="muted" style="padding:12px">Nenhum produto encontrado.</p>';
   },
