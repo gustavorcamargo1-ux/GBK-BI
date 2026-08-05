@@ -1601,6 +1601,7 @@ textarea#tf-desc{min-height:170px !important;height:170px;max-height:50vh;resize
             <button class="ghost-btn sm" onclick="FabTabelas._selAll()">Selecionar todos visíveis</button>
             <button class="ghost-btn sm" onclick="FabTabelas._selNone()">Limpar seleção</button>
             <button class="ghost-btn sm" onclick="FabTabelas._confirmarTodosSugeridos()"><i class="fa-solid fa-check-double"></i> Confirmar sugeridos selecionados</button>
+            <button class="ghost-btn sm" onclick="FabTabelas._cadastrarSelecionados()"><i class="fa-solid fa-plus"></i> Cadastrar na tabela</button>
             <button class="primary-btn sm" style="margin-left:auto" onclick="FabTabelas._vincularSelecionados()"><i class="fa-solid fa-link"></i> Vincular selecionados</button>
           </div>
           <div class="table-wrap" id="fab-audit-table-wrap" style="display:none">
@@ -6393,11 +6394,66 @@ const FabTabelas = {
     if(bar) bar.style.display=n>0?'flex':'none';
     if(cnt) cnt.textContent=`${n} produto(s) selecionado(s)`;
   },
+  _cadastrarSelecionados() {
+    if (!this._selSku?.size) { UI.toast('warn','Selecione produtos primeiro'); return; }
+    // Pega só os sem vínculo ou sem EAN selecionados
+    const elegíveis = [...this._selSku]
+      .map(sku => this._rows.find(r => r.sku === sku))
+      .filter(r => r && (r.status === 'NAO_VINCULADO' || r.status === 'SEM_EAN') && r.tipo !== 'KIT');
+    if (!elegíveis.length) { UI.toast('warn','Nenhum "Sem vínculo" selecionado'); return; }
+    this._cadastrandoLote = elegíveis;
+    this._cadastrandoIdx = 0;
+    this._abrirProximoCadastro();
+  },
+
+  _abrirProximoCadastro() {
+    if (this._cadastrandoIdx >= this._cadastrandoLote.length) {
+      document.getElementById('fab-add-prod-modal').style.display = 'none';
+      UI.toast('ok', `${this._cadastrandoLote.length} produto(s) processado(s)!`);
+      this._selNone();
+      this._auditar(this._fabId, document.getElementById('fab-audit-nome')?.textContent||'');
+      return;
+    }
+    const r = this._cadastrandoLote[this._cadastrandoIdx];
+    const total = this._cadastrandoLote.length;
+    const atual = this._cadastrandoIdx + 1;
+
+    // Preenche campos com dados do Tiny
+    document.getElementById('fab-add-ean').value = r.ean || '';
+    document.getElementById('fab-add-desc').value = r.produto || '';
+    document.getElementById('fab-add-preco').value = r.precoTiny ? r.precoTiny.toFixed(2) : '';
+
+    // Mostra navegação
+    const nav = document.getElementById('fab-add-nav');
+    if (nav) { nav.textContent = `${atual} de ${total}`; nav.style.display = ''; }
+
+    // Mostra botões próximo e pular
+    const btnProx = document.getElementById('fab-add-proximo-btn');
+    const btnPular = document.getElementById('fab-add-pular-btn');
+    if (btnProx) btnProx.style.display = atual < total ? '' : 'none';
+    if (btnPular) btnPular.style.display = atual < total ? '' : 'none';
+
+    document.getElementById('fab-add-prod-modal').style.display = 'flex';
+    this._renderListaExtras();
+    // Foca no preço (EAN e descrição já vieram preenchidos)
+    setTimeout(() => document.getElementById('fab-add-preco')?.focus(), 100);
+  },
+
+  _pularProduto() {
+    this._cadastrandoIdx++;
+    this._abrirProximoCadastro();
+  },
+
   _abrirAddProduto() {
     if (!this._fabId) { UI.toast('warn','Selecione um fabricante primeiro'); return; }
+    this._cadastrandoLote = null;
+    this._cadastrandoIdx = 0;
     document.getElementById('fab-add-ean').value = '';
     document.getElementById('fab-add-desc').value = '';
     document.getElementById('fab-add-preco').value = '';
+    const nav = document.getElementById('fab-add-nav'); if(nav) nav.style.display='none';
+    const btnProx = document.getElementById('fab-add-proximo-btn'); if(btnProx) btnProx.style.display='none';
+    const btnPular = document.getElementById('fab-add-pular-btn'); if(btnPular) btnPular.style.display='none';
     document.getElementById('fab-add-prod-modal').style.display = 'flex';
     this._renderListaExtras();
   },
@@ -6418,7 +6474,7 @@ const FabTabelas = {
         </div>`).join('');
   },
 
-  async _salvarProdutoManual() {
+  async _salvarProdutoManual(avancar=false) {
     const ean = (document.getElementById('fab-add-ean')?.value||'').trim();
     const desc = (document.getElementById('fab-add-desc')?.value||'').trim();
     const preco = parseFloat(document.getElementById('fab-add-preco')?.value||'0');
@@ -6456,6 +6512,15 @@ const FabTabelas = {
 
       this._renderListaExtras();
       UI.toast('ok', `Produto "${desc}" adicionado!`);
+
+      // Se modo lote, avança para o próximo
+      if (this._cadastrandoLote && avancar) {
+        this._cadastrandoIdx++;
+        setTimeout(() => this._abrirProximoCadastro(), 300);
+      } else if (!this._cadastrandoLote) {
+        // Modo manual simples: fecha o modal
+        setTimeout(() => document.getElementById('fab-add-prod-modal').style.display='none', 800);
+      }
 
     } catch(e) { UI.toast('warn','Erro: '+e.message); }
   },
@@ -7521,7 +7586,10 @@ window.addEventListener('DOMContentLoaded',()=>Auth.start());
 <div id="fab-add-prod-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:999999;align-items:center;justify-content:center">
   <div style="background:#1e1e1e;border-radius:14px;width:min(480px,95vw);padding:28px;position:relative;box-shadow:0 24px 80px rgba(0,0,0,.6);border:1px solid #444">
     <button onclick="document.getElementById('fab-add-prod-modal').style.display='none'" style="position:absolute;top:14px;right:16px;background:none;border:none;font-size:20px;cursor:pointer;color:#aaa">✕</button>
-    <h3 style="margin-bottom:4px;color:#fff"><i class="fa-solid fa-plus"></i> Adicionar produto manualmente</h3>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+      <h3 style="color:#fff;margin:0"><i class="fa-solid fa-plus"></i> Adicionar produto manualmente</h3>
+      <span id="fab-add-nav" style="font-size:12px;color:#aaa;display:none"></span>
+    </div>
     <p style="font-size:12px;color:#aaa;margin-bottom:16px">Para produtos com preço informado fora da tabela oficial (WhatsApp, e-mail, etc.)</p>
     <div style="display:flex;flex-direction:column;gap:12px">
       <div>
@@ -7543,9 +7611,17 @@ window.addEventListener('DOMContentLoaded',()=>Auth.start());
         Produto extra (não está na tabela oficial)
       </label>
     </div>
-    <button onclick="FabTabelas._salvarProdutoManual()" class="primary-btn" style="width:100%;margin-top:16px;padding:11px">
-      <i class="fa-solid fa-floppy-disk"></i> Salvar produto
-    </button>
+    <div style="display:flex;gap:8px;margin-top:16px">
+      <button onclick="FabTabelas._salvarProdutoManual(false)" class="ghost-btn" style="flex:1;padding:11px">
+        <i class="fa-solid fa-floppy-disk"></i> Salvar
+      </button>
+      <button id="fab-add-proximo-btn" onclick="FabTabelas._salvarProdutoManual(true)" class="primary-btn" style="flex:1;padding:11px;display:none">
+        <i class="fa-solid fa-arrow-right"></i> Salvar e próximo
+      </button>
+      <button id="fab-add-pular-btn" onclick="FabTabelas._pularProduto()" class="ghost-btn" style="flex:1;padding:11px;display:none">
+        Pular
+      </button>
+    </div>
     <div id="fab-add-lista" style="margin-top:16px;max-height:200px;overflow-y:auto;border-top:1px solid #333;padding-top:12px"></div>
   </div>
 </div>
