@@ -6520,7 +6520,7 @@ const FabTabelas = {
     const produtos = Array.isArray(prodRaw) ? prodRaw : (typeof prodRaw==='string' ? JSON.parse(prodRaw||'[]') : []);
     const q = (document.getElementById('fab-tabela-fab-search')?.value||'').toLowerCase();
 
-    // Mapa EAN → SKU Tiny para mostrar se está no Tiny
+    // Mapa EAN → SKU Tiny (por EAN direto ou por vínculo manual)
     const erpItems = State.raw.erp || [];
     const prodmeta = State.prodmeta || {};
     const eanParaSku = {};
@@ -6528,6 +6528,10 @@ const FabTabelas = {
       const meta = prodmeta[erp.sku] || {};
       const ean = (erp.ean || meta.ean || '').toString().trim().replace(/\.0+$/, '');
       if (ean) eanParaSku[ean] = erp.sku;
+    });
+    // Adiciona vínculos manuais: ean_fab → sku_tiny
+    Object.entries(this._vinculosBySku || {}).forEach(([sku, ean]) => {
+      if (ean && !eanParaSku[ean]) eanParaSku[ean] = sku;
     });
 
     let rows = produtos;
