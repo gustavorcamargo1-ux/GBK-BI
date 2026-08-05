@@ -6432,12 +6432,31 @@ const FabTabelas = {
   async _confirmarVinculo(sku, ean) {
     try {
       const id = `fv_${sku}_${this._fabId}`;
-      await Cloud.sb.from('fab_vinculos').upsert({id, sku_tiny:sku, ean_fab:ean, fabricante_id:this._fabId});
+      const {error} = await Cloud.sb.from('fab_vinculos').upsert({id, sku_tiny:sku, ean_fab:ean, fabricante_id:this._fabId});
+      if(error) throw error;
+      // Atualiza memória
       this._vinculosBySku[sku] = ean;
-      UI.toast('ok', `Vínculo confirmado! Atualizando…`);
-      const nomeFab = document.getElementById('fab-audit-nome')?.textContent||'';
-      await this._auditar(this._fabId, nomeFab);
-    } catch(e) { UI.toast('warn','Erro: '+e.message); }
+      // Remove da lista imediatamente e recalcula status
+      const row = this._rows.find(r=>r.sku===sku);
+      if(row) {
+        const fab = this._produtos?.find(p=>p.ean===ean);
+        if(fab) {
+          const diff = row.precoTiny ? Math.round((row.precoTiny-fab.preco)*100)/100 : null;
+          row.status = diff!=null?(Math.abs(diff)>=0.01?'ERRO':'OK'):'SEM_EAN';
+          row.precoFab = fab.preco;
+          row.ean = ean;
+          row.diff = diff;
+          row.camada = 2;
+          row.vinculado = true;
+        }
+      }
+      this._updateSummario();
+      this._renderTabela();
+      UI.toast('ok', `Vínculo confirmado!`);
+    } catch(e) {
+      console.error('_confirmarVinculo erro:', e);
+      UI.toast('warn','Erro ao salvar: '+e.message);
+    }
   },
 
   _abrirVinculo(sku, produto) {
