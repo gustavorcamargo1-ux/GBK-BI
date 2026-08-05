@@ -6431,12 +6431,12 @@ const FabTabelas = {
                 <tfoot>
                   <tr style="border-top:2px solid var(--border);background:var(--card-bg)">
                     <td colspan="4" style="padding:5px 10px;font-size:11px;color:var(--muted)">Total cheio (soma componentes)</td>
-                    <td style="padding:5px 10px;font-size:12px;text-align:right;color:var(--muted)">${r.precoFab!=null?U.brl(r.precoFab):'—'}</td>
+                    <td style="padding:5px 10px;font-size:12px;text-align:right;color:var(--muted)">${r.precoFabCheio!=null?U.brl(r.precoFabCheio):'—'}</td>
                     <td></td>
                   </tr>
                   <tr style="background:var(--card-bg)">
                     <td colspan="4" style="padding:7px 10px;font-size:11px;font-weight:700">Preço de venda (-10% arredondado) ← conferir com Tiny</td>
-                    <td style="padding:7px 10px;font-size:14px;font-weight:700;text-align:right;color:var(--brand)">${r.precoVenda!=null?U.brl(r.precoVenda):'—'}</td>
+                    <td style="padding:7px 10px;font-size:14px;font-weight:700;text-align:right;color:var(--brand)">${r.precoFabDesconto!=null?U.brl(r.precoFabDesconto):'—'}</td>
                     <td></td>
                   </tr>
                 </tfoot>
@@ -6456,12 +6456,12 @@ const FabTabelas = {
             ? `<span style="font-size:11px;color:var(--muted)">${(r.componentes||[]).length} componente(s)</span>`
             : (r.sugestao?.descricao || (r.vinculado ? (this._produtos?.find(p=>p.ean===r.ean)?.descricao||'—') : '—'))
         }${r.camada===3?' <span style="font-size:9px;color:var(--warning)">(sugestão)</span>':''}</td>
-        <td class="num">${r.tipo==='KIT'&&r.precoFab!=null
-          ?`<span style="font-size:10px;color:var(--muted);display:block">Cheio: ${U.brl(r.precoFab)}</span><b style="color:var(--brand)">${r.precoVenda!=null?U.brl(r.precoVenda):'—'}</b><span style="font-size:9px;color:var(--muted)"> -10%</span>`
+        <td class="num">${r.tipo==='KIT'
+          ?`<span style="font-size:10px;color:var(--muted);display:block">Cheio: ${r.precoFabCheio!=null?U.brl(r.precoFabCheio):'—'}</span><b style="color:var(--brand)">${r.precoFabDesconto!=null?U.brl(r.precoFabDesconto):'—'}</b><span style="font-size:9px;color:var(--muted)"> -10%</span>`
           :(r.precoFab!=null?U.brl(r.precoFab):'<span class="muted">—</span>')
         }</td>
         <td class="num">${diffStr}</td>
-        <td class="num">${(()=>{const base=r.tipo==='KIT'?(r.precoVenda||r.precoFab):r.precoFab;if(!r.precoTiny||!base)return '—';const pct=(r.precoTiny-base)/base*100;return `<span class="${pct>0?'diff-pos':'diff-neg'}">${pct>0?'+':''}${pct.toFixed(1)}%</span>`;})()}</td>
+        <td class="num">${(()=>{const base=r.tipo==='KIT'?(r.precoFabDesconto||r.precoFab):r.precoFab;if(!r.precoTiny||!base)return '—';const pct=(r.precoTiny-base)/base*100;return `<span class="${pct>0?'diff-pos':'diff-neg'}">${pct>0?'+':''}${pct.toFixed(1)}%</span>`;})()}</td>
         <td>${tipoStr}</td>
         <td style="white-space:nowrap" onclick="event.stopPropagation()">${confirmarBtn}${tag[r.status]||r.status} ${btnVincular} ${desvincularBtn}</td>
       </tr>${kitDetalheRow}`;
