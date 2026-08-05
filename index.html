@@ -6253,11 +6253,11 @@ const FabTabelas = {
           if (compsFab===0) continue; // nenhum componente deste fabricante
           // Inclui kit mesmo que nem todos componentes sejam deste fabricante (kit misto possível)
           // Verifica se o kit existe diretamente na tabela do fabricante (por EAN)
+          // Kit na tabela: apenas para referência, não substitui a soma
           const kitNaTabela = ean && fabByEan[ean] ? fabByEan[ean] : null;
-          const precoBaseKit = kitNaTabela ? kitNaTabela.preco : precoFab;
           const ehDicolore = fabNome.toLowerCase().includes('dicolore');
-          // Preço cheio (soma ou tabela) e preço com desconto
-          const precoFabCheio = precoBaseKit || null;
+          // Preço cheio = sempre soma dos componentes encontrados
+          const precoFabCheio = precoFab > 0 ? precoFab : null;
           const precoFabDesconto = (ehDicolore && precoFabCheio) ? this._precoKitDicolore(precoFabCheio) : precoFabCheio;
           // Usa preço com desconto para comparar com Tiny
           const precoFabFinal = precoFabDesconto;
