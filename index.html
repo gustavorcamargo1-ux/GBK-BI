@@ -6241,23 +6241,18 @@ const FabTabelas = {
 
         if (isKit) {
           const comps = this._kits[sku]||[];
-          let precoFab=0, compsFab=0;
+          let _somaKit=0, compsFab=0;
           const det=[];
           for (const comp of comps) {
             const cErp = erpItems.find(e=>e.sku===comp.sku);
             const cMeta = prodmeta[comp.sku]||{};
             const cEan = vinculosBySku[comp.sku] || (cErp?(cErp.ean||cMeta.ean||''):(cMeta.ean||'')).toString().trim().replace(/\.0+$/,'');
             const fc = fabByEan[cEan];
-            if (fc){precoFab+=fc.preco*comp.qtd;compsFab++;det.push(`${comp.sku} ×${comp.qtd}=R$${(fc.preco*comp.qtd).toFixed(2)}`);}
+            if (fc){_somaKit+=fc.preco*comp.qtd;compsFab++;det.push(comp.sku+' x'+comp.qtd+'=R$'+(fc.preco*comp.qtd).toFixed(2));}
           }
-          if (compsFab===0) continue; // nenhum componente deste fabricante
-          // Inclui kit mesmo que nem todos componentes sejam deste fabricante (kit misto possível)
-          // Verifica se o kit existe diretamente na tabela do fabricante (por EAN)
-          // Kit na tabela: apenas para referência, não substitui a soma
-          const kitNaTabela = ean && fabByEan[ean] ? fabByEan[ean] : null;
+          if (compsFab===0) continue;
           const ehDicolore = fabNome.toLowerCase().includes('dicolore');
-          // Preço cheio = sempre soma dos componentes encontrados
-          const precoFabCheio = precoFab > 0 ? precoFab : null;
+          const precoFabCheio = _somaKit > 0 ? _somaKit : null;
           const precoFabDesconto = (ehDicolore && precoFabCheio) ? this._precoKitDicolore(precoFabCheio) : precoFabCheio;
           // Usa preço com desconto para comparar com Tiny
           const precoFabFinal = precoFabDesconto;
