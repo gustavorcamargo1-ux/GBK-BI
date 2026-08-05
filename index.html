@@ -1589,13 +1589,14 @@ textarea#tf-desc{min-height:170px !important;height:170px;max-height:50vh;resize
           <!-- Resumo e busca -->
           <div id="fab-audit-toolbar" style="display:none;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:8px">
             <span id="fab-audit-total" class="muted" style="font-size:12px"></span>
-            <input type="text" id="fab-audit-search" placeholder="🔍 Buscar SKU, produto ou EAN…" style="padding:5px 8px;border:1px solid var(--border);border-radius:6px;background:var(--card-bg);color:var(--text);font-size:13px;width:240px" oninput="FabTabelas._renderTabela()">
+
           </div>
           <!-- Barra de seleção múltipla -->
           <div id="fab-sel-bar" style="display:none;gap:8px;align-items:center;padding:8px 12px;background:var(--card-bg);border:1px solid var(--border);border-radius:8px;margin-bottom:8px;flex-wrap:wrap">
             <span id="fab-sel-count" style="font-size:13px;color:var(--muted)">0 selecionados</span>
             <button class="ghost-btn sm" onclick="FabTabelas._selAll()">Selecionar todos visíveis</button>
             <button class="ghost-btn sm" onclick="FabTabelas._selNone()">Limpar seleção</button>
+            <button class="ghost-btn sm" onclick="FabTabelas._confirmarTodosSugeridos()"><i class="fa-solid fa-check-double"></i> Confirmar sugeridos selecionados</button>
             <button class="primary-btn sm" style="margin-left:auto" onclick="FabTabelas._vincularSelecionados()"><i class="fa-solid fa-link"></i> Vincular selecionados</button>
           </div>
           <div class="table-wrap" id="fab-audit-table-wrap" style="display:none">
@@ -1604,7 +1605,7 @@ textarea#tf-desc{min-height:170px !important;height:170px;max-height:50vh;resize
                 <th style="width:32px"><input type="checkbox" id="fab-chk-all" title="Selecionar todos visíveis"></th>
                 <th>SKU</th><th>Produto</th><th>Marca</th><th>EAN</th>
                 <th class="num">Preço Tiny</th><th class="num">Preço Fabricante</th>
-                <th class="num">Diferença</th><th>Tipo</th><th>Status</th>
+                <th class="num">Diferença</th><th class="num">%</th><th>Tipo</th><th>Status</th>
               </tr></thead>
               <tbody id="fab-audit-tbody"></tbody>
             </table>
@@ -6224,9 +6225,11 @@ const FabTabelas = {
             const fc = fabByEan[cEan];
             if (fc){precoFab+=fc.preco*comp.qtd;compsFab++;det.push(`${comp.sku} ×${comp.qtd}=R$${(fc.preco*comp.qtd).toFixed(2)}`);}
           }
-          if (compsFab===0||compsFab<comps.length) continue;
+          if (compsFab===0) continue; // nenhum componente deste fabricante
+          // Inclui kit mesmo que nem todos componentes sejam deste fabricante (kit misto possível)
           const diff=precoTiny&&precoFab?Math.round((precoTiny-precoFab)*100)/100:null;
-          rows.push({sku,produto:erp.produto||'',ean,precoTiny,precoFab:precoFab||null,diff,status:diff!=null?(Math.abs(diff)>=0.01?'ERRO':'OK'):'SEM_EAN',tipo:'KIT',camada:1,detalhes:det.join(' | ')});
+          const kitStatus = compsFab<comps.length ? 'SUGERIDO' : (diff!=null?(Math.abs(diff)>=0.01?'ERRO':'OK'):'SEM_EAN');
+          rows.push({sku,produto:erp.produto||'',marca:erp.marca||'',ean,precoTiny,precoFab:precoFab||null,diff,status:kitStatus,tipo:'KIT',camada:1,detalhes:det.join(' | ')});
           continue;
         }
 
@@ -6289,7 +6292,7 @@ const FabTabelas = {
 
   _updateSummario() {
     const c = { OK:0, ERRO:0, SEM_EAN:0, NAO_ENCONTRADO:0, KIT:0, SUGERIDO:0, NAO_VINCULADO:0 };
-    this._rows.forEach(r => { if(c[r.status]!==undefined) c[r.status]++; });
+    this._rows.forEach(r => { if(r.tipo==='KIT') c.KIT++; else if(c[r.status]!==undefined) c[r.status]++; });
     const bar = document.getElementById('fab-audit-summary');
     if (!bar) return;
     bar.innerHTML = `
@@ -6341,12 +6344,13 @@ const FabTabelas = {
       return `<tr>
         <td><input type="checkbox" class="fab-row-chk" data-sku="${r.sku}" ${checked} onchange="FabTabelas._onChkRow(this)"></td>
         <td class="mono" style="font-size:12px">${r.sku}</td>
-        <td style="max-width:220px;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${r.produto}">${r.produto}</td>
+        <td style="font-size:12px;max-width:220px;word-break:break-word;line-height:1.3">${r.produto}</td>
         <td style="font-size:11px;color:var(--muted)">${r.marca||'—'}</td>
         <td class="mono" style="font-size:11px">${r.ean||'—'}</td>
         <td class="num">${r.precoTiny?U.brl(r.precoTiny):'<span class="muted">—</span>'}</td>
         <td class="num">${r.precoFab!=null?U.brl(r.precoFab):'<span class="muted">—</span>'}</td>
         <td class="num">${diffStr}</td>
+        <td class="num">${r.precoTiny&&r.precoFab&&r.precoFab>0?`<span class="${((r.precoTiny-r.precoFab)/r.precoFab*100)>0?'diff-pos':'diff-neg'}">${((r.precoTiny-r.precoFab)/r.precoFab*100)>0?'+':''}${((r.precoTiny-r.precoFab)/r.precoFab*100).toFixed(1)}%</span>`:'—'}</td>
         <td>${tipoStr}</td>
         <td style="white-space:nowrap">${confirmarBtn}${tag[r.status]||r.status} ${btnVincular}</td>
       </tr>`;
@@ -6377,6 +6381,29 @@ const FabTabelas = {
     if(bar) bar.style.display=n>0?'flex':'none';
     if(cnt) cnt.textContent=`${n} produto(s) selecionado(s)`;
   },
+  async _confirmarTodosSugeridos() {
+    if(!this._selSku?.size) return;
+    const sugeridos = [...this._selSku].filter(sku => {
+      const r = this._rows.find(r=>r.sku===sku);
+      return r && r.status==='SUGERIDO' && r.ean;
+    });
+    if(!sugeridos.length){ UI.toast('warn','Nenhum sugerido selecionado'); return; }
+    let ok=0;
+    for(const sku of sugeridos){
+      const r=this._rows.find(r=>r.sku===sku);
+      if(!r||!r.ean) continue;
+      try{
+        const id=`fv_${sku}_${this._fabId}`;
+        await Cloud.sb.from('fab_vinculos').upsert({id,sku_tiny:sku,ean_fab:r.ean,fabricante_id:this._fabId});
+        this._vinculosBySku[sku]=r.ean;
+        ok++;
+      }catch(e){console.warn(e);}
+    }
+    UI.toast('ok',`${ok} vínculo(s) confirmado(s)!`);
+    this._selNone();
+    await this._auditar(this._fabId, document.getElementById('fab-audit-nome').textContent);
+  },
+
   _vincularSelecionados() {
     if(!this._selSku?.size) return;
     this._vinculandoLote=[...this._selSku];
@@ -6404,8 +6431,9 @@ const FabTabelas = {
       const id = `fv_${sku}_${this._fabId}`;
       await Cloud.sb.from('fab_vinculos').upsert({id, sku_tiny:sku, ean_fab:ean, fabricante_id:this._fabId});
       this._vinculosBySku[sku] = ean;
-      UI.toast('ok', `Vínculo confirmado para SKU ${sku}`);
-      await this._auditar(this._fabId, document.getElementById('fab-audit-nome').textContent);
+      UI.toast('ok', `Vínculo confirmado! Atualizando…`);
+      const nomeFab = document.getElementById('fab-audit-nome')?.textContent||'';
+      await this._auditar(this._fabId, nomeFab);
     } catch(e) { UI.toast('warn','Erro: '+e.message); }
   },
 
