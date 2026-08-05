@@ -6345,7 +6345,7 @@ const FabTabelas = {
       const confirmarBtn = r.status==='SUGERIDO'
         ? `<button class="primary-btn sm" style="font-size:11px;padding:2px 6px" onclick="FabTabelas._confirmarVinculo('${r.sku}','${r.ean}')">✓ Confirmar</button> `
         : '';
-      const desvincularBtn = r.camada===2
+      const desvincularBtn = (r.precoFab!=null && r.tipo!=='KIT')
         ? `<button class="ghost-btn sm" style="font-size:11px;padding:2px 6px;color:var(--danger)" onclick="FabTabelas._desvincular('${r.sku}')">✕ Desvincular</button>`
         : '';
       const checked = this._selSku.has(r.sku)?'checked':'';
