@@ -6165,6 +6165,26 @@ const FabTabelas = {
     const inp = document.getElementById('fab-modal-nome'); if(inp) inp.value = '';
   },
 
+  // Calcula preço sugerido do kit: -10% e arredonda para X9,90 abaixo
+  _precoKitDicolore(precoBase) {
+    if (!precoBase) return null;
+    const comDesconto = precoBase * 0.9;
+    // Arredonda para baixo até X9,90
+    // ex: 160,74 → 159,90 | 178,60 → 159,90... wait
+    // Regra: encontra o múltiplo de 10 abaixo e subtrai 0,10
+    // 160,74 → floor(160,74/10)*10 - 0,10 = 160 - 0,10 = 159,90 ✅
+    const arredondado = Math.floor(comDesconto / 10) * 10 - 0.10;
+    return Math.round(arredondado * 100) / 100;
+  },
+
+  _precoKitVenda(precoBase) {
+    const comDesconto = precoBase * 0.9;
+    const parteInteira = Math.floor(comDesconto);
+    let resultado = (parteInteira - 1) + 0.90;
+    if (resultado > comDesconto) resultado -= 1;
+    return Math.round(resultado * 100) / 100;
+  },
+
   // Fuzzy match: compara palavras em comum entre dois nomes
   _fuzzyScore(a, b) {
     const norm = s => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9 ]/g,' ').trim();
@@ -6232,9 +6252,42 @@ const FabTabelas = {
           }
           if (compsFab===0) continue; // nenhum componente deste fabricante
           // Inclui kit mesmo que nem todos componentes sejam deste fabricante (kit misto possível)
-          const diff=precoTiny&&precoFab?Math.round((precoTiny-precoFab)*100)/100:null;
+          // Verifica se o kit existe diretamente na tabela do fabricante (por EAN)
+          const kitNaTabela = ean && fabByEan[ean] ? fabByEan[ean] : null;
+          const precoBaseKit = kitNaTabela ? kitNaTabela.preco : precoFab;
+          const ehDicolore = fabNome.toLowerCase().includes('dicolore');
+          // Preço cheio (soma ou tabela) e preço com desconto
+          const precoFabCheio = precoBaseKit || null;
+          const precoFabDesconto = (ehDicolore && precoFabCheio) ? this._precoKitDicolore(precoFabCheio) : precoFabCheio;
+          // Usa preço com desconto para comparar com Tiny
+          const precoFabFinal = precoFabDesconto;
+          const diff=precoTiny&&precoFabFinal?Math.round((precoTiny-precoFabFinal)*100)/100:null;
           const kitStatus = compsFab<comps.length ? 'SUGERIDO' : (diff!=null?(Math.abs(diff)>=0.01?'ERRO':'OK'):'SEM_EAN');
-          rows.push({sku,produto:erp.produto||'',marca:erp.marca||'',ean,precoTiny,precoFab:precoFab||null,diff,status:kitStatus,tipo:'KIT',camada:1,detalhes:det.join(' | ')});
+          // Monta lista de componentes detalhada para expandir na UI
+          const compDetalhe = comps.map(comp => {
+            const cErp = erpItems.find(e=>e.sku===comp.sku);
+            const cMeta = prodmeta[comp.sku]||{};
+            const cEan = vinculosBySku[comp.sku]||(cErp?(cErp.ean||cMeta.ean||''):(cMeta.ean||'')).toString().trim().replace(/\.0+$/,'');
+            const fc = fabByEan[cEan];
+            return {
+              sku: comp.sku,
+              produto: cErp?.produto || comp.sku,
+              qtd: comp.qtd,
+              preco: fc ? fc.preco : null,
+              subtotal: fc ? fc.preco * comp.qtd : null,
+              encontrado: !!fc
+            };
+          });
+          rows.push({
+            sku, produto:erp.produto||'', marca:erp.marca||'', ean, precoTiny,
+            precoFab: precoFabFinal,           // preço com desconto (para comparar)
+            precoFabCheio: precoFabCheio,      // preço cheio (para mostrar)
+            precoFabDesconto: precoFabDesconto, // preço com desconto calculado
+            kitNaTabela: !!kitNaTabela,         // se veio da tabela ou foi somado
+            ehDicolore,
+            diff, status:kitStatus, tipo:'KIT', camada:1,
+            detalhes:det.join(' | '), componentes:compDetalhe
+          });
           continue;
         }
 
@@ -6349,8 +6402,50 @@ const FabTabelas = {
         ? `<button class="ghost-btn sm" style="font-size:11px;padding:2px 6px;color:var(--danger)" onclick="FabTabelas._desvincular('${r.sku}')">✕ Desvincular</button>`
         : '';
       const checked = this._selSku.has(r.sku)?'checked':'';
-      return `<tr>
-        <td><input type="checkbox" class="fab-row-chk" data-sku="${r.sku}" ${checked} onchange="FabTabelas._onChkRow(this)"></td>
+      const kitDetalheRow = r.tipo==='KIT' ? `
+        <tr id="kit-detalhe-${r.sku}" style="display:none">
+          <td colspan="11" style="padding:0 8px 12px 40px;background:var(--bg)">
+            <div style="border:1px solid var(--border);border-radius:8px;overflow:hidden;margin-top:4px">
+              <div style="background:var(--card-bg);padding:8px 12px;font-size:11px;font-weight:600;color:var(--muted);border-bottom:1px solid var(--border)">
+                COMPONENTES DO KIT
+              </div>
+              <table style="width:100%;border-collapse:collapse">
+                <thead><tr style="background:var(--card-bg)">
+                  <th style="padding:6px 10px;font-size:11px;text-align:left;color:var(--muted);font-weight:500">SKU</th>
+                  <th style="padding:6px 10px;font-size:11px;text-align:left;color:var(--muted);font-weight:500">Produto</th>
+                  <th style="padding:6px 10px;font-size:11px;text-align:center;color:var(--muted);font-weight:500">Qtd</th>
+                  <th style="padding:6px 10px;font-size:11px;text-align:right;color:var(--muted);font-weight:500">Preço unit.</th>
+                  <th style="padding:6px 10px;font-size:11px;text-align:right;color:var(--muted);font-weight:500">Subtotal</th>
+                  <th style="padding:6px 10px;font-size:11px;text-align:center;color:var(--muted);font-weight:500">Status</th>
+                </tr></thead>
+                <tbody>${(r.componentes||[]).map(c=>`
+                  <tr style="border-top:1px solid var(--border)">
+                    <td style="padding:7px 10px;font-size:11px;font-family:monospace">${c.sku}</td>
+                    <td style="padding:7px 10px;font-size:11px">${c.produto}</td>
+                    <td style="padding:7px 10px;font-size:11px;text-align:center">×${c.qtd}</td>
+                    <td style="padding:7px 10px;font-size:11px;text-align:right">${c.preco!=null?U.brl(c.preco):'—'}</td>
+                    <td style="padding:7px 10px;font-size:11px;text-align:right;font-weight:600">${c.subtotal!=null?U.brl(c.subtotal):'—'}</td>
+                    <td style="padding:7px 10px;font-size:11px;text-align:center">${c.encontrado?'<span class="tag-ok">✅ EAN</span>':'<span class="tag-sem">⚠️ Sem EAN</span>'}</td>
+                  </tr>`).join('')}
+                </tbody>
+                <tfoot>
+                  <tr style="border-top:2px solid var(--border);background:var(--card-bg)">
+                    <td colspan="4" style="padding:5px 10px;font-size:11px;color:var(--muted)">Total cheio (soma componentes)</td>
+                    <td style="padding:5px 10px;font-size:12px;text-align:right;color:var(--muted)">${r.precoFab!=null?U.brl(r.precoFab):'—'}</td>
+                    <td></td>
+                  </tr>
+                  <tr style="background:var(--card-bg)">
+                    <td colspan="4" style="padding:7px 10px;font-size:11px;font-weight:700">Preço de venda (-10% arredondado) ← conferir com Tiny</td>
+                    <td style="padding:7px 10px;font-size:14px;font-weight:700;text-align:right;color:var(--brand)">${r.precoVenda!=null?U.brl(r.precoVenda):'—'}</td>
+                    <td></td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          </td>
+        </tr>` : '';
+      return `<tr style="${r.tipo==='KIT'?'cursor:pointer;':''}" ${r.tipo==='KIT'?`onclick="FabTabelas._toggleKitDetalhe('${r.sku}')"`:''}>
+        <td onclick="event.stopPropagation()"><input type="checkbox" class="fab-row-chk" data-sku="${r.sku}" ${checked} onchange="FabTabelas._onChkRow(this)"></td>
         <td class="mono" style="font-size:12px">${r.sku}</td>
         <td style="font-size:12px;max-width:220px;word-break:break-word;line-height:1.3">${r.produto}</td>
         <td style="font-size:11px;color:var(--muted)">${r.marca||'—'}</td>
@@ -6358,15 +6453,18 @@ const FabTabelas = {
         <td class="num">${r.precoTiny?U.brl(r.precoTiny):'<span class="muted">—</span>'}</td>
         <td style="font-size:11px;max-width:180px;word-break:break-word;line-height:1.3;color:${r.camada===3?'var(--warning)':'var(--text)'}">${
           r.tipo==='KIT'
-            ? `<span style="font-size:10px;color:var(--muted)">${r.detalhes||'—'}</span>`
+            ? `<span style="font-size:11px;color:var(--muted)">${(r.componentes||[]).length} componente(s)</span>`
             : (r.sugestao?.descricao || (r.vinculado ? (this._produtos?.find(p=>p.ean===r.ean)?.descricao||'—') : '—'))
         }${r.camada===3?' <span style="font-size:9px;color:var(--warning)">(sugestão)</span>':''}</td>
-        <td class="num">${r.precoFab!=null?U.brl(r.precoFab):'<span class="muted">—</span>'}</td>
+        <td class="num">${r.tipo==='KIT'&&r.precoFab!=null
+          ?`<span style="font-size:10px;color:var(--muted);display:block">Cheio: ${U.brl(r.precoFab)}</span><b style="color:var(--brand)">${r.precoVenda!=null?U.brl(r.precoVenda):'—'}</b><span style="font-size:9px;color:var(--muted)"> -10%</span>`
+          :(r.precoFab!=null?U.brl(r.precoFab):'<span class="muted">—</span>')
+        }</td>
         <td class="num">${diffStr}</td>
-        <td class="num">${r.precoTiny&&r.precoFab&&r.precoFab>0?`<span class="${((r.precoTiny-r.precoFab)/r.precoFab*100)>0?'diff-pos':'diff-neg'}">${((r.precoTiny-r.precoFab)/r.precoFab*100)>0?'+':''}${((r.precoTiny-r.precoFab)/r.precoFab*100).toFixed(1)}%</span>`:'—'}</td>
+        <td class="num">${(()=>{const base=r.tipo==='KIT'?(r.precoVenda||r.precoFab):r.precoFab;if(!r.precoTiny||!base)return '—';const pct=(r.precoTiny-base)/base*100;return `<span class="${pct>0?'diff-pos':'diff-neg'}">${pct>0?'+':''}${pct.toFixed(1)}%</span>`;})()}</td>
         <td>${tipoStr}</td>
-        <td style="white-space:nowrap">${confirmarBtn}${tag[r.status]||r.status} ${btnVincular} ${desvincularBtn}</td>
-      </tr>`;
+        <td style="white-space:nowrap" onclick="event.stopPropagation()">${confirmarBtn}${tag[r.status]||r.status} ${btnVincular} ${desvincularBtn}</td>
+      </tr>${kitDetalheRow}`;
     }).join('');
   },
 
@@ -6394,6 +6492,16 @@ const FabTabelas = {
     if(bar) bar.style.display=n>0?'flex':'none';
     if(cnt) cnt.textContent=`${n} produto(s) selecionado(s)`;
   },
+  _toggleKitDetalhe(sku) {
+    const row = document.getElementById(`kit-detalhe-${sku}`);
+    if (!row) return;
+    const visible = row.style.display !== 'none';
+    row.style.display = visible ? 'none' : '';
+    // Atualiza ícone da linha pai
+    const btn = document.querySelector(`tr[onclick*="${sku}"] .ghost-btn`);
+    if (btn) btn.textContent = visible ? '▶ Ver componentes' : '▼ Ocultar componentes';
+  },
+
   _cadastrarSelecionados() {
     if (!this._selSku?.size) { UI.toast('warn','Selecione produtos primeiro'); return; }
     // Pega só os sem vínculo ou sem EAN selecionados
