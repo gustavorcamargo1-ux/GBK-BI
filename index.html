@@ -4459,13 +4459,24 @@ const MercadoAds = {
       const rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
       let hr=-1;
       for(let i=0;i<Math.min(8,rows.length);i++){ const line=rows[i].map(x=>U.norm(x)); if(line.includes('codigodoanuncio')||line.some(h=>h.includes('codigodoanuncio'))){ hr=i; break; } }
+      // Tenta detectar formato "Por anúncios vendidos"
+      let formatoVendidos = false;
+      if(hr<0){
+        for(let i=0;i<Math.min(10,rows.length);i++){
+          const line=rows[i].map(x=>U.norm(x));
+          if(line.some(h=>h.includes('numerodoanunciopatrocinado')||h.includes('titulodoanunciopatrocinado'))){
+            hr=i; formatoVendidos=true; break;
+          }
+        }
+      }
       if(hr<0){ UI.toast('warn','Relatório não reconhecido','Esperado o "Relatório de anúncios" do Mercado Ads'); return; }
       const Hn=rows[hr].map(x=>U.norm(x));
       const col=(...keys)=>{ for(const k of keys){ const i=Hn.findIndex(h=>h.includes(k)); if(i>=0) return i; } return -1; };
-      const iMlb=col('codigodoanuncio'), iTit=col('tituladoanunciopatrocinado','tituladoanuncio','titulo'),
+      const iMlb=col('numerodoanunciopatrocinado','codigodoanuncio'), iTit=col('titulodoanunciopatrocinado','tituladoanunciopatrocinado','tituladoanuncio','titulo'),
         iImp=col('impressoes'), iClk=col('cliques'), iCpc=col('cpc'), iCtr=col('ctr'), iCvr=col('cvr'),
-        iRev=col('receita'), iInv=col('investimento'), iAcos=col('acos'), iRoas=col('roas'),
-        iUni=col('vendasporpublicidade','unidades'), iDe=col('desde'), iAte=col('ate');
+        iRev=col('receita'), iInv=col('investimento','gastostotais'), iAcos=col('acos'), iRoas=col('roas'),
+        iUni=col('vendasporpublicidade','unidades'), iDe=col('desde','de'), iAte=col('ate');
+      const iCamp=col('campanha'), iStatus=col('statusdoanuncio');
       const N=v=>{ const s=(''+v).replace('R$','').replace(/\./g,(m,o,str)=>str.indexOf(',')>=0?'':'.').replace(',','.').trim(); const n=parseFloat(s); return isFinite(n)?n:0; };
       const byTitle={}; let de='',ate='',totInv=0,totRev=0,n=0;
       for(let i=hr+1;i<rows.length;i++){
@@ -4480,7 +4491,10 @@ const MercadoAds = {
         if(!o.mlb) o.mlb=mlb;
         byTitle[key]=o; totInv+=N(rows[i][iInv]); totRev+=N(rows[i][iRev]); n++;
       }
-      State.adsml={de,ate,byTitle,total:{invest:totInv,adsRev:totRev,n}};
+      // Índice por MLB para cruzamento mais preciso
+      const byMlb={};
+      Object.values(byTitle).forEach(ad=>{ if(ad.mlb) byMlb[ad.mlb.trim()]=ad; });
+      State.adsml={de,ate,byTitle,byMlb,total:{invest:totInv,adsRev:totRev,n}};
       await DB.put('config',{k:'adsml',data:State.adsml});
       UI.toast('ok',`${n} anúncios importados`,`Investimento R$ ${totInv.toFixed(2)} no período`);
       this._page=1; this.render();
@@ -4498,12 +4512,24 @@ const MercadoAds = {
   },
   products(){
     const a=this.data(); const ads=(a&&a.byTitle)||{};
+    // Calcula taxa de cruzamento para alerta de confiabilidade
+    const totalAds=Object.keys(ads).length;
+    const semVendas=Object.values(ads).filter(ad=>{
+      const key=U.norm(ad.titulo);
+      return !(State.enriched||[]).some(r=>r.marketplace==='Mercado Livre'&&U.norm(r.produto||r.sku)===key);
+    }).length;
+    const pctSemCruz=totalAds>0?Math.round(semVendas/totalAds*100):0;
     const agg={};
     const _deI=this._toISO(a&&a.de), _ateI=this._toISO(a&&a.ate);
     const _inPer=(d)=>{ if(!_deI&&!_ateI) return true; const x=this._toISO(d)||(''+d); return (!_deI||x>=_deI)&&(!_ateI||x<=_ateI); };
+    const adsByMlb=(a&&a.byMlb)||{};
     (State.enriched||[]).filter(r=>r.marketplace==='Mercado Livre' && _inPer(r.data)).forEach(r=>{
-      const key=U.norm(r.produto||r.sku);
-      const o=agg[key]||{titulo:r.produto||r.sku,sku:r.sku,marca:r.marca||'',qtd:0,receitaBruta:0,receitaLiquida:0,custoERP:0,imposto:0};
+      // Tenta cruzar por MLB primeiro (mais preciso), depois por título
+      const mlbVenda = (r.pedido||'').match(/MLB\d+/i)?.[0] || '';
+      const adPorMlb = mlbVenda && adsByMlb[mlbVenda];
+      const key = adPorMlb ? U.norm(adPorMlb.titulo) : U.norm(r.produto||r.sku);
+      const titulo = adPorMlb ? adPorMlb.titulo : (r.produto||r.sku);
+      const o=agg[key]||{titulo,sku:r.sku,marca:r.marca||'',qtd:0,receitaBruta:0,receitaLiquida:0,custoERP:0,imposto:0};
       o.qtd+=r.qtd||0; o.receitaBruta+=r.receitaBruta||0; o.receitaLiquida+=r.receitaLiquida||0;
       o.custoERP+=r.custoERP||0; o.imposto+=r.imposto||0;
       if(!o.marca&&r.marca) o.marca=r.marca;
@@ -4662,7 +4688,7 @@ const MercadoAds = {
       await Cloud.sb.from('ads_pausados').upsert({ id, mlb, titulo, pausado_em });
       this._pausados[mlb] = pausado_em;
       UI.toast('ok', `⏸ Marcado como pausado: ${titulo.slice(0,40)}`);
-      this.refresh();
+      MercadoAds.render();
     } catch(e) { UI.toast('warn','Erro: '+e.message); }
   },
 
@@ -4671,7 +4697,7 @@ const MercadoAds = {
       await Cloud.sb.from('ads_pausados').delete().eq('mlb', mlb);
       delete this._pausados[mlb];
       UI.toast('ok', `▶ Pausa desfeita: ${titulo.slice(0,40)}`);
-      this.refresh();
+      MercadoAds.render();
     } catch(e) { UI.toast('warn','Erro: '+e.message); }
   },
 
@@ -4705,14 +4731,25 @@ const MercadoAds = {
       pausado
         ? `<div style="display:flex;align-items:center;gap:6px">
             <span style="font-size:11px;background:rgba(229,72,77,.1);color:#E5484D;padding:3px 8px;border-radius:4px;font-weight:600">⏸ Pausado em ${pausadoEm}</span>
-            <button onclick="MercadoAds._desfazerPausa('${(p.mlb||p.titulo).replace(/'/g,"\'")}','${(p.titulo||'').replace(/'/g,"\'")}')" style="background:none;border:none;font-size:11px;color:var(--muted);cursor:pointer;text-decoration:underline">Desfazer</button>
+            <button onclick="event.stopPropagation();MercadoAds._desfazerPausa('${(p.mlb||p.titulo).replace(/'/g,"\'")}','${(p.titulo||'').replace(/'/g,"\'")}')" style="background:none;border:none;font-size:11px;color:var(--muted);cursor:pointer;text-decoration:underline">Desfazer</button>
            </div>`
-        : `<button onclick="MercadoAds._marcarPausado('${(p.mlb||p.titulo).replace(/'/g,"\'")}','${(p.titulo||'').replace(/'/g,"\'")}')" style="margin-top:8px;padding:5px 12px;background:#E5484D;color:#fff;border:none;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer">⏸ Pausei este anúncio</button>`
+        : `<button onclick="event.stopPropagation();MercadoAds._marcarPausado('${(p.mlb||p.titulo).replace(/'/g,"\'")}','${(p.titulo||'').replace(/'/g,"\'")}')" style="margin-top:8px;padding:5px 12px;background:#E5484D;color:#fff;border:none;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer">⏸ Pausei este anúncio</button>`
     ) : '';
     const cardStyle = pausado ? 'opacity:0.5;border-left:3px solid #E5484D' : '';
     return `<div class="mads-card mads-row" data-key="${U.norm(p.titulo)}" style="${cardStyle}">
       <div class="mads-card-top"><span class="mads-tag ${c.cls}">${p.classe}</span><span class="mads-card-vend">${p.qtd} venda${p.qtd===1?'':'s'}</span></div>
-      <div class="mads-card-title">${p.titulo}${p.mlb?`<span class="muted"> · ${p.mlb}</span>`:''}</div>
+      <div class="mads-card-title">${p.titulo}${p.mlb?`
+        <span class="muted"> · ${p.mlb}</span>
+        <button onclick="event.stopPropagation();navigator.clipboard.writeText('${p.mlb}').then(()=>UI.toast('ok','Código copiado!'))" 
+          title="Copiar código do anúncio"
+          style="margin-left:6px;background:none;border:1px solid var(--border);border-radius:4px;padding:1px 6px;font-size:11px;cursor:pointer;color:var(--muted)">
+          <i class="fa-solid fa-copy"></i>
+        </button>
+        <a href="https://www.mercadolivre.com.br/anuncios/${p.mlb}/modificar" target="_blank" onclick="event.stopPropagation()"
+          title="Abrir no ML"
+          style="margin-left:4px;background:none;border:1px solid var(--border);border-radius:4px;padding:1px 6px;font-size:11px;cursor:pointer;color:var(--muted);text-decoration:none">
+          <i class="fa-solid fa-arrow-up-right-from-square"></i>
+        </a>`:''}</div>
       <div class="mads-card-why">${this._motivo(p)}</div>
       ${this._regua(p)}
       <div class="mads-card-nums">
@@ -4726,16 +4763,19 @@ const MercadoAds = {
   },
   _resumoExec(ps){
     const dias=this._dias();
-    const pausar=ps.filter(p=>p.classe==='Pausar imediatamente');
+    const _jaPausado=p=>!!(MercadoAds._pausados&&MercadoAds._pausados[p.mlb||p.titulo]);
+    const pausar=ps.filter(p=>p.classe==='Pausar imediatamente'&&!_jaPausado(p));
+    const pausados=ps.filter(p=>p.classe==='Pausar imediatamente'&&_jaPausado(p));
     const reduzir=ps.filter(p=>p.classe==='Reduzir investimento');
     const escalar=ps.filter(p=>p.classe.startsWith('Escalar'));
-    const perde=ps.filter(p=>p.lucroReal<0).reduce((s,p)=>s+Math.abs(p.lucroReal),0);
+    const perde=ps.filter(p=>p.lucroReal<0&&!_jaPausado(p)).reduce((s,p)=>s+Math.abs(p.lucroReal),0);
     const adsPausar=pausar.reduce((s,p)=>s+(p.invest||0),0);
     const adsReduzir=reduzir.reduce((s,p)=>s+(p.invest||0),0);
     const upDia=escalar.reduce((s,p)=>s+Math.max(0,(p.budgetDia||0)-(p.invest||0)/dias),0);
     const card=(cls,ic,tit,n,linha)=> n>0?`<div class="mads-rz ${cls}"><div class="mads-rz-h">${ic} <b>${n}</b> ${tit}</div><div class="mads-rz-l">${linha}</div></div>`:'';
     const cards=[
       card('rz-red','🔴','para pausar',pausar.length,`Deixa de perder <b>${U.brl(perde)}</b> no período${adsPausar>0?` e libera <b>${U.brl(adsPausar)}</b> de Ads`:''}.`),
+      pausados.length?`<div class="mads-rz" style="border-left:3px solid #888"><div class="mads-rz-h">⏸ <b>${pausados.length}</b> já pausado${pausados.length>1?'s':''} por você</div></div>`:'',
       card('rz-yel','🟡','para reduzir',reduzir.length,`<b>${U.brl(adsReduzir)}</b> em Ads rendendo abaixo do ideal — corte o excesso.`),
       card('rz-grn','🟢','para escalar',escalar.length,`Espaço para investir <b>~${U.brl(upDia)}/dia</b> a mais nos lucrativos.`)
     ].join('');
@@ -4788,6 +4828,19 @@ const MercadoAds = {
   _showAnalise(){
     const a=this.analise(), t=a.t;
     const nivelCls={'Crítico':'neg','Atenção':'warn-t','Saudável':'pos'}[a.nivel]||'';
+    // Alerta de confiabilidade
+    if(pctSemCruz>30){
+      html+=`<div style="background:rgba(229,72,77,.1);border:1px solid rgba(229,72,77,.3);border-radius:8px;padding:12px 16px;margin-bottom:16px;display:flex;gap:10px;align-items:flex-start">
+        <i class="fa-solid fa-triangle-exclamation" style="color:#E5484D;margin-top:2px;flex-shrink:0"></i>
+        <div>
+          <b style="color:#E5484D">Atenção: ${pctSemCruz}% dos anúncios sem correspondência nas vendas</b>
+          <p style="margin:4px 0 0;font-size:13px;color:var(--txt-2)">
+            ${semVendas} de ${totalAds} anúncios não encontraram vendas correspondentes — pode indicar diferença de nome entre o relatório de ADS e as vendas importadas.
+            <b>Não tome decisões de pausar baseado nesta análise sem verificar manualmente no ML.</b>
+          </p>
+        </div>
+      </div>`;
+    }
     const li=(p,fx)=>`<div class="rank-row"><div class="rank-name">${p.titulo}</div><div class="rank-val">${fx(p)}</div></div>`;
     const sec=(x)=>`<h4 class="mads-h4">${x}</h4>`;
     let html=`<div class="mads-diag"><span class="mads-niv ${nivelCls}">${a.nivel}</span><p>${a.diag}</p></div>
