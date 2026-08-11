@@ -4519,6 +4519,7 @@ const MercadoAds = {
       return !(State.enriched||[]).some(r=>r.marketplace==='Mercado Livre'&&U.norm(r.produto||r.sku)===key);
     }).length;
     const pctSemCruz=totalAds>0?Math.round(semVendas/totalAds*100):0;
+    this._pctSemCruz = pctSemCruz; // salva para uso em _showAnalise
     const agg={};
     const _deI=this._toISO(a&&a.de), _ateI=this._toISO(a&&a.ate);
     const _inPer=(d)=>{ if(!_deI&&!_ateI) return true; const x=this._toISO(d)||(''+d); return (!_deI||x>=_deI)&&(!_ateI||x<=_ateI); };
@@ -4909,6 +4910,7 @@ const MercadoAds = {
     const a=this.analise(), t=a.t;
     const nivelCls={'Crítico':'neg','Atenção':'warn-t','Saudável':'pos'}[a.nivel]||'';
     // Alerta de confiabilidade
+    const pctSemCruz = this._pctSemCruz||0;
     if(pctSemCruz>30){
       html+=`<div style="background:rgba(229,72,77,.1);border:1px solid rgba(229,72,77,.3);border-radius:8px;padding:12px 16px;margin-bottom:16px;display:flex;gap:10px;align-items:flex-start">
         <i class="fa-solid fa-triangle-exclamation" style="color:#E5484D;margin-top:2px;flex-shrink:0"></i>
@@ -4964,7 +4966,11 @@ const MercadoAds = {
     const a=this.data();
     const inv=a?U.brl(a.total.invest):'';
     const importBar=`<div class="panel"><div class="panel-head"><h3><i class="fa-solid fa-bullhorn"></i> Relatório de Mercado Ads</h3>
-      <label class="primary-btn sm" style="cursor:pointer;margin:0"><i class="fa-solid fa-upload"></i> Importar relatório de Ads<input type="file" id="mads-input" accept=".xlsx,.xls" style="display:none"></label></div>
+      <label class="primary-btn sm" style="cursor:pointer;margin:0"><i class="fa-solid fa-upload"></i> Importar relatório de Ads<input type="file" id="mads-input" accept=".xlsx,.xls" style="display:none"></label>
+      <label class="ghost-btn sm" style="cursor:pointer;margin:0" title="Importe o arquivo de anúncios do ML (com MLB e SKU) para cruzamento preciso">
+        <i class="fa-solid fa-link"></i> Mapa MLB→SKU
+        <input type="file" accept=".xlsx" style="display:none" onchange="MercadoAds._importarAnuncios(this.files[0])">
+      </label></div>
       <p class="muted">Importe o <b>"Relatório de anúncios"</b> do Mercado Ads (por anúncio). ${a?`Período: <b>${a.de} → ${a.ate}</b> · ${a.total.n} anúncios · investimento <b>${inv}</b>.`:'Ainda sem dados de Ads importados.'}</p></div>`;
     if(!a){ el.innerHTML=importBar+`<div class="panel"><p class="muted">Assim que importar o relatório, esta aba cruza com suas vendas e custos e mostra, por produto: classificação (escalar / manter / reduzir / pausar), ROAS, ACOS, lucro real e sugestão de orçamento.</p></div>`; this._wireImport(el); return; }
     const ps=this.products(), t=this.totals();
