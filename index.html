@@ -1595,6 +1595,39 @@ textarea#tf-desc{min-height:170px !important;height:170px;max-height:50vh;resize
             <span id="fab-audit-total" class="muted" style="font-size:12px"></span>
 
           </div>
+          <!-- Filtros de coluna -->
+          <div id="fab-col-filters" style="display:none;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:8px">
+            <span style="font-size:12px;color:var(--muted)">Filtros:</span>
+            <select id="fab-f-marca" onchange="FabTabelas._filtroMarca=this.value;FabTabelas._renderTabela()" style="padding:4px 8px;border:1px solid var(--border);border-radius:6px;background:var(--card-bg);color:var(--text);font-size:12px">
+              <option value="">Todas as marcas</option>
+            </select>
+            <select id="fab-f-tipo" onchange="FabTabelas._filtroTipo=this.value;FabTabelas._renderTabela()" style="padding:4px 8px;border:1px solid var(--border);border-radius:6px;background:var(--card-bg);color:var(--text);font-size:12px">
+              <option value="">Todos os tipos</option>
+              <option value="PRODUTO">Produto</option>
+              <option value="KIT">Kit</option>
+            </select>
+            <select id="fab-f-status" onchange="FabTabelas._filtroStatus=this.value;FabTabelas._renderTabela()" style="padding:4px 8px;border:1px solid var(--border);border-radius:6px;background:var(--card-bg);color:var(--text);font-size:12px">
+              <option value="">Todos os status</option>
+              <option value="OK">✅ OK</option>
+              <option value="ERRO">❌ Preço errado</option>
+              <option value="SUGERIDO">🔗 Sugerido</option>
+              <option value="NAO_VINCULADO">❓ Sem vínculo</option>
+            </select>
+            <select id="fab-f-direcao" onchange="FabTabelas._renderTabela()" style="padding:4px 8px;border:1px solid var(--border);border-radius:6px;background:var(--card-bg);color:var(--text);font-size:12px">
+              <option value="">Qualquer direção</option>
+              <option value="acima">▲ Acima da tabela</option>
+              <option value="abaixo">▼ Abaixo da tabela</option>
+            </select>
+            <select id="fab-f-diff-preset" onchange="FabTabelas._aplicarPresetDiff(this.value)" style="padding:4px 8px;border:1px solid var(--border);border-radius:6px;background:var(--card-bg);color:var(--text);font-size:12px">
+              <option value="">Dif. mínima</option>
+              <option value="1">≥ R$ 1</option>
+              <option value="5">≥ R$ 5</option>
+              <option value="10">≥ R$ 10</option>
+              <option value="50">≥ R$ 50</option>
+            </select>
+            <input type="number" id="fab-f-diff-min" placeholder="Ou valor livre R$" step="0.01" oninput="FabTabelas._renderTabela()" style="padding:4px 8px;border:1px solid var(--border);border-radius:6px;background:var(--card-bg);color:var(--text);font-size:12px;width:120px">
+            <button class="ghost-btn sm" onclick="FabTabelas._limparFiltrosColunas()">✕ Limpar filtros</button>
+          </div>
           <!-- Barra de seleção múltipla -->
           <div id="fab-sel-bar" style="display:none;gap:8px;align-items:center;padding:8px 12px;background:var(--card-bg);border:1px solid var(--border);border-radius:8px;margin-bottom:8px;flex-wrap:wrap">
             <span id="fab-sel-count" style="font-size:13px;color:var(--muted)">0 selecionados</span>
@@ -1608,9 +1641,17 @@ textarea#tf-desc{min-height:170px !important;height:170px;max-height:50vh;resize
             <table class="simple-table">
               <thead><tr>
                 <th style="width:32px"><input type="checkbox" id="fab-chk-all" title="Selecionar todos visíveis"></th>
-                <th>SKU</th><th>Produto</th><th>Marca</th><th>EAN</th>
-                <th class="num">Preço Tiny</th><th>Produto Fabricante</th><th class="num">Preço Fabricante</th>
-                <th class="num">Diferença</th><th class="num">%</th><th>Tipo</th><th>Status</th>
+                <th onclick="FabTabelas._sortBy('sku')" style="cursor:pointer;user-select:none">SKU <span id="fab-sort-sku"></span></th>
+                <th onclick="FabTabelas._sortBy('produto')" style="cursor:pointer;user-select:none">Produto <span id="fab-sort-produto"></span></th>
+                <th onclick="FabTabelas._sortBy('marca')" style="cursor:pointer;user-select:none">Marca <span id="fab-sort-marca"></span></th>
+                <th>EAN</th>
+                <th class="num" onclick="FabTabelas._sortBy('precoTiny')" style="cursor:pointer;user-select:none">Preço Tiny <span id="fab-sort-precoTiny"></span></th>
+                <th>Produto Fabricante</th>
+                <th class="num" onclick="FabTabelas._sortBy('precoFab')" style="cursor:pointer;user-select:none">Preço Fab. <span id="fab-sort-precoFab"></span></th>
+                <th class="num" onclick="FabTabelas._sortBy('diff')" style="cursor:pointer;user-select:none">Diferença <span id="fab-sort-diff"></span></th>
+                <th class="num">%</th>
+                <th>Tipo</th>
+                <th onclick="FabTabelas._sortBy('status')" style="cursor:pointer;user-select:none">Status <span id="fab-sort-status"></span></th>
               </tr></thead>
               <tbody id="fab-audit-tbody"></tbody>
             </table>
@@ -3578,7 +3619,7 @@ const UI = {
     if(view==='precificacao') Pricing.render();
     if(view==='precificacao'){ setTimeout(()=>{ if(document.getElementById('kit-controls')&&!document.getElementById('kit-tam')) Kits.render(); },0); }
     if(view==='caixa') Caixa.render();
-    if(view==='mads') MercadoAds.render();
+    if(view==='mads'){ MercadoAds._carregarPausados().then(()=>MercadoAds.render()); }
     if(view==='tarefas') Tarefas.render();
     if(view==='viab') Viabilidade.render();
     if(view==='plano') Plano.render();
@@ -4604,6 +4645,36 @@ const MercadoAds = {
     }[m];
     this._modal(info.n,`<p class="mads-mp"><b>O que é:</b> ${info.d}</p><div class="mads-mval">Seu número agora: <b>${val}</b></div><p class="mads-mp"><b>Leitura:</b> ${leitura}</p><p class="mads-mp"><b>Como melhorar:</b> ${melhora}</p>`);
   },
+  _pausados: {},
+
+  async _carregarPausados() {
+    try {
+      const { data } = await Cloud.sb.from('ads_pausados').select('*');
+      this._pausados = {};
+      (data||[]).forEach(r => { this._pausados[r.mlb] = r.pausado_em; });
+    } catch(e) { console.warn('ads_pausados:', e.message); }
+  },
+
+  async _marcarPausado(mlb, titulo) {
+    try {
+      const id = 'adsp_' + mlb.replace(/[^a-zA-Z0-9]/g,'_');
+      const pausado_em = new Date().toISOString();
+      await Cloud.sb.from('ads_pausados').upsert({ id, mlb, titulo, pausado_em });
+      this._pausados[mlb] = pausado_em;
+      UI.toast('ok', `⏸ Marcado como pausado: ${titulo.slice(0,40)}`);
+      this.refresh();
+    } catch(e) { UI.toast('warn','Erro: '+e.message); }
+  },
+
+  async _desfazerPausa(mlb, titulo) {
+    try {
+      await Cloud.sb.from('ads_pausados').delete().eq('mlb', mlb);
+      delete this._pausados[mlb];
+      UI.toast('ok', `▶ Pausa desfeita: ${titulo.slice(0,40)}`);
+      this.refresh();
+    } catch(e) { UI.toast('warn','Erro: '+e.message); }
+  },
+
   _motivo(p,a){
     const meta=State.config.margemAlvo||20;
     if(p.classe==='Pausar imediatamente'){
@@ -4628,7 +4699,18 @@ const MercadoAds = {
   },
   _cardHtml(p){
     const c=MADS_CLASS[p.classe]||{};
-    return `<div class="mads-card mads-row" data-key="${U.norm(p.titulo)}">
+    const pausado = MercadoAds._pausados && MercadoAds._pausados[p.mlb||p.titulo];
+    const pausadoEm = pausado ? new Date(pausado).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}) : null;
+    const btnPausar = p.classe==='Pausar imediatamente' ? (
+      pausado
+        ? `<div style="display:flex;align-items:center;gap:6px">
+            <span style="font-size:11px;background:rgba(229,72,77,.1);color:#E5484D;padding:3px 8px;border-radius:4px;font-weight:600">⏸ Pausado em ${pausadoEm}</span>
+            <button onclick="MercadoAds._desfazerPausa('${(p.mlb||p.titulo).replace(/'/g,"\'")}','${(p.titulo||'').replace(/'/g,"\'")}')" style="background:none;border:none;font-size:11px;color:var(--muted);cursor:pointer;text-decoration:underline">Desfazer</button>
+           </div>`
+        : `<button onclick="MercadoAds._marcarPausado('${(p.mlb||p.titulo).replace(/'/g,"\'")}','${(p.titulo||'').replace(/'/g,"\'")}')" style="margin-top:8px;padding:5px 12px;background:#E5484D;color:#fff;border:none;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer">⏸ Pausei este anúncio</button>`
+    ) : '';
+    const cardStyle = pausado ? 'opacity:0.5;border-left:3px solid #E5484D' : '';
+    return `<div class="mads-card mads-row" data-key="${U.norm(p.titulo)}" style="${cardStyle}">
       <div class="mads-card-top"><span class="mads-tag ${c.cls}">${p.classe}</span><span class="mads-card-vend">${p.qtd} venda${p.qtd===1?'':'s'}</span></div>
       <div class="mads-card-title">${p.titulo}${p.mlb?`<span class="muted"> · ${p.mlb}</span>`:''}</div>
       <div class="mads-card-why">${this._motivo(p)}</div>
@@ -4638,7 +4720,9 @@ const MercadoAds = {
         <div class="mcn"><label>Lucro real</label><b class="${p.lucroReal>=0?'pos':'neg'}">${U.brl(p.lucroReal)}</b></div>
         <div class="mcn"><label>Ads hoje</label><b>${p.invest>0?U.brl(p.invest):'—'}</b></div>
         <div class="mcn"><label>Sugestão</label><b>${p.budgetDia>0?U.brl(p.budgetDia)+'/dia':'—'}</b></div>
-      </div></div>`;
+      </div>
+      ${btnPausar}
+    </div>`;
   },
   _resumoExec(ps){
     const dias=this._dias();
@@ -6278,7 +6362,6 @@ const FabTabelas = {
             precoFab: precoFabFinal,           // preço com desconto (para comparar)
             precoFabCheio: precoFabCheio,      // preço cheio (para mostrar)
             precoFabDesconto: precoFabDesconto, // preço com desconto calculado
-            kitNaTabela: !!kitNaTabela,         // se veio da tabela ou foi somado
             ehDicolore,
             diff, status:kitStatus, tipo:'KIT', camada:1,
             detalhes:det.join(' | '), componentes:compDetalhe
@@ -6286,19 +6369,19 @@ const FabTabelas = {
           continue;
         }
 
-        // C1: EAN exato
-        if (ean&&fabByEan[ean]) {
-          const fab=fabByEan[ean];
-          const diff=precoTiny?Math.round((precoTiny-fab.preco)*100)/100:null;
-          rows.push({sku,produto:erp.produto||fab.descricao,ean,precoTiny,precoFab:fab.preco,diff,status:diff!=null?(Math.abs(diff)>=0.01?'ERRO':'OK'):'SEM_EAN',tipo:'PRODUTO',camada:1,marca:erp.marca||''});
-          continue;
-        }
-        // C2: Vínculo manual
+        // C2: Vínculo manual — tem prioridade sobre EAN (permite corrigir EAN errado)
         const eanV=vinculosBySku[sku];
         if (eanV&&fabByEan[eanV]) {
           const fab=fabByEan[eanV];
           const diff=precoTiny?Math.round((precoTiny-fab.preco)*100)/100:null;
           rows.push({sku,produto:erp.produto||fab.descricao,ean:eanV,precoTiny,precoFab:fab.preco,diff,status:diff!=null?(Math.abs(diff)>=0.01?'ERRO':'OK'):'SEM_EAN',tipo:'PRODUTO',camada:2,vinculado:true,marca:erp.marca||''});
+          continue;
+        }
+        // C1: EAN exato
+        if (ean&&fabByEan[ean]) {
+          const fab=fabByEan[ean];
+          const diff=precoTiny?Math.round((precoTiny-fab.preco)*100)/100:null;
+          rows.push({sku,produto:erp.produto||fab.descricao,ean,precoTiny,precoFab:fab.preco,diff,status:diff!=null?(Math.abs(diff)>=0.01?'ERRO':'OK'):'SEM_EAN',tipo:'PRODUTO',camada:1,marca:erp.marca||''});
           continue;
         }
         // C3: Fuzzy match — só sugere se a marca do ERP incluir o nome do fabricante
@@ -6357,6 +6440,10 @@ const FabTabelas = {
     bar.style.display = 'flex';
     document.getElementById('fab-audit-filters').style.display = 'flex';
     document.getElementById('fab-audit-toolbar').style.display = 'flex';
+    document.getElementById('fab-col-filters').style.display = 'flex';
+    // Popula marcas
+    const marcasSel = document.getElementById('fab-f-marca');
+    if (marcasSel && marcasSel.options.length <= 1) { const ms=new Set(this._rows.map(r=>r.marca).filter(Boolean)); [...ms].sort().forEach(m=>{const o=document.createElement('option');o.value=m;o.textContent=m;marcasSel.appendChild(o);}); }
     document.getElementById('fab-audit-table-wrap').style.display = '';
     document.getElementById('fab-audit-empty').style.display = 'none';
     // Total e sem vínculo
@@ -6384,6 +6471,25 @@ const FabTabelas = {
     if(!this._selSku) this._selSku = new Set();
     const q2 = (document.getElementById('fab-audit-search')?.value||'').toLowerCase();
     if(q2) rows = rows.filter(r=>r.sku.includes(q2)||r.produto.toLowerCase().includes(q2)||(r.ean||'').includes(q2)||(r.marca||'').toLowerCase().includes(q2));
+    // Filtros de coluna
+    if(this._filtroMarca) rows = rows.filter(r=>(r.marca||'')===this._filtroMarca);
+    if(this._filtroTipo) rows = rows.filter(r=>r.tipo===this._filtroTipo);
+    if(this._filtroStatus) rows = rows.filter(r=>r.status===this._filtroStatus);
+    const diffMin = parseFloat(document.getElementById('fab-f-diff-min')?.value||'0')||0;
+    if(diffMin>0) rows = rows.filter(r=>r.diff!=null&&Math.abs(r.diff)>=diffMin);
+    const direcao = document.getElementById('fab-f-direcao')?.value||'';
+    if(direcao==='acima') rows = rows.filter(r=>r.diff!=null&&r.diff>0);
+    if(direcao==='abaixo') rows = rows.filter(r=>r.diff!=null&&r.diff<0);
+    // Ordenação
+    if(this._sortCol) {
+      rows = [...rows].sort((a,b)=>{
+        let va=a[this._sortCol], vb=b[this._sortCol];
+        if(va==null) va=this._sortDir>0?Infinity:-Infinity;
+        if(vb==null) vb=this._sortDir>0?Infinity:-Infinity;
+        if(typeof va==='string') return va.localeCompare(vb)*this._sortDir;
+        return (va-vb)*this._sortDir;
+      });
+    }
     this._visibleRows = rows;
     const tbody = document.getElementById('fab-audit-tbody'); if(!tbody) return;
     tbody.innerHTML = rows.slice(0,500).map(r => {
@@ -6461,6 +6567,31 @@ const FabTabelas = {
         <td style="white-space:nowrap" onclick="event.stopPropagation()">${confirmarBtn}${tag[r.status]||r.status} ${btnVincular} ${desvincularBtn}</td>
       </tr>${kitDetalheRow}`;
     }).join('');
+  },
+
+  _aplicarPresetDiff(val) {
+    const el = document.getElementById('fab-f-diff-min');
+    if (el) el.value = val;
+    this._renderTabela();
+  },
+
+  _limparFiltrosColunas() {
+    this._filtroMarca=''; this._filtroTipo=''; this._filtroStatus=''; this._sortCol=null; this._sortDir=1;
+    ['fab-f-marca','fab-f-tipo','fab-f-status','fab-f-direcao','fab-f-diff-preset'].forEach(id=>{const el=document.getElementById(id);if(el)el.selectedIndex=0;});
+    const d=document.getElementById('fab-f-diff-min');if(d)d.value='';
+    ['sku','produto','marca','precoTiny','precoFab','diff','status'].forEach(c=>{const el=document.getElementById('fab-sort-'+c);if(el)el.textContent='';});
+    this._renderTabela();
+  },
+
+  _sortBy(col) {
+    if (this._sortCol === col) this._sortDir *= -1;
+    else { this._sortCol = col; this._sortDir = 1; }
+    // Atualiza ícones
+    ['sku','produto','marca','precoTiny','precoFab','diff','status'].forEach(c => {
+      const el = document.getElementById('fab-sort-'+c);
+      if (el) el.textContent = c === col ? (this._sortDir === 1 ? ' ▲' : ' ▼') : '';
+    });
+    this._renderTabela();
   },
 
   _onChkRow(el) {
