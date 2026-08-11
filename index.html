@@ -3619,7 +3619,7 @@ const UI = {
     if(view==='precificacao') Pricing.render();
     if(view==='precificacao'){ setTimeout(()=>{ if(document.getElementById('kit-controls')&&!document.getElementById('kit-tam')) Kits.render(); },0); }
     if(view==='caixa') Caixa.render();
-    if(view==='mads'){ MercadoAds._carregarPausados().then(()=>MercadoAds.render()); }
+    if(view==='mads'){ Promise.all([MercadoAds._carregarPausados(), MercadoAds._carregarMapaMLB()]).then(()=>MercadoAds.render()); }
     if(view==='tarefas') Tarefas.render();
     if(view==='viab') Viabilidade.render();
     if(view==='plano') Plano.render();
@@ -4523,17 +4523,49 @@ const MercadoAds = {
     const _deI=this._toISO(a&&a.de), _ateI=this._toISO(a&&a.ate);
     const _inPer=(d)=>{ if(!_deI&&!_ateI) return true; const x=this._toISO(d)||(''+d); return (!_deI||x>=_deI)&&(!_ateI||x<=_ateI); };
     const adsByMlb=(a&&a.byMlb)||{};
+    // Fuzzy match ignorando unidades de medida
+    const _stopQtd=new Set(['1','2','3','4','5','6','7','8','9','10','kg','g','ml','l','un','und','unid','kit','par','250','300','500','1000','100','120','130','150','200','400','50','30']);
+    const _palavras=s=>new Set(U.norm(s).split(/\s+/).filter(w=>w.length>2&&!_stopQtd.has(w)));
+    const _fuzzyAdsTitulo=(tVenda)=>{
+      const wv=_palavras(tVenda); if(!wv.size) return null;
+      let best=0,bestKey=null;
+      for(const [key,ad] of Object.entries(ads)){
+        const wa=_palavras(ad.titulo); if(!wa.size) continue;
+        const inter=[...wv].filter(w=>wa.has(w)).length;
+        const score=inter/Math.max(wv.size,wa.size);
+        if(score>best){best=score;bestKey=key;}
+      }
+      return best>=0.65?bestKey:null;
+    };
+    // Mapa SKU → key ads (usando tabela ml_anuncios)
+    const mapaMLB = MercadoAds._mapaMLBSku || {};
+    // Constrói mapa SKU → key ads a partir do mapa MLB→SKU e ads→titulo
+    const skuToAdKey = {};
+    Object.values(mapaMLB).forEach(({sku, titulo}) => {
+      const adKey = U.norm(titulo);
+      if (ads[adKey]) skuToAdKey[sku] = adKey;
+    });
+
+    const _cacheMap={};
     (State.enriched||[]).filter(r=>r.marketplace==='Mercado Livre' && _inPer(r.data)).forEach(r=>{
-      // Tenta cruzar por MLB primeiro (mais preciso), depois por título
-      const mlbVenda = (r.pedido||'').match(/MLB\d+/i)?.[0] || '';
-      const adPorMlb = mlbVenda && adsByMlb[mlbVenda];
-      const key = adPorMlb ? U.norm(adPorMlb.titulo) : U.norm(r.produto||r.sku);
-      const titulo = adPorMlb ? adPorMlb.titulo : (r.produto||r.sku);
-      const o=agg[key]||{titulo,sku:r.sku,marca:r.marca||'',qtd:0,receitaBruta:0,receitaLiquida:0,custoERP:0,imposto:0};
+      const tVenda=r.produto||r.sku||'';
+      const skuVenda=(r.sku||'').toString().trim();
+      // 1. Cruzamento por SKU via tabela ml_anuncios (mais preciso)
+      let key = skuVenda && skuToAdKey[skuVenda] ? skuToAdKey[skuVenda] : null;
+      // 2. Título exato
+      if(!key){ const keyExato=U.norm(tVenda); key=ads[keyExato]?keyExato:null; }
+      // 3. Cache fuzzy
+      const cacheKey=U.norm(tVenda);
+      if(!key&&_cacheMap[cacheKey]!==undefined) key=_cacheMap[cacheKey]||null;
+      // 4. Fuzzy por título (fallback)
+      if(!key){ key=_fuzzyAdsTitulo(tVenda); _cacheMap[cacheKey]=key||''; }
+      const titulo=key?(ads[key]?.titulo||tVenda):tVenda;
+      const aggKey=key||U.norm(tVenda);
+      const o=agg[aggKey]||{titulo,sku:skuVenda,marca:r.marca||'',qtd:0,receitaBruta:0,receitaLiquida:0,custoERP:0,imposto:0};
       o.qtd+=r.qtd||0; o.receitaBruta+=r.receitaBruta||0; o.receitaLiquida+=r.receitaLiquida||0;
       o.custoERP+=r.custoERP||0; o.imposto+=r.imposto||0;
       if(!o.marca&&r.marca) o.marca=r.marca;
-      agg[key]=o;
+      agg[aggKey]=o;
     });
     // garante produtos que têm ads mas sem venda registrada (gasto sem retorno)
     Object.keys(ads).forEach(key=>{ if(!agg[key]){ const ad=ads[key]; agg[key]={titulo:ad.titulo,sku:'',marca:'',qtd:0,receitaBruta:0,receitaLiquida:0,custoERP:0,imposto:0}; } });
@@ -4672,6 +4704,54 @@ const MercadoAds = {
     this._modal(info.n,`<p class="mads-mp"><b>O que é:</b> ${info.d}</p><div class="mads-mval">Seu número agora: <b>${val}</b></div><p class="mads-mp"><b>Leitura:</b> ${leitura}</p><p class="mads-mp"><b>Como melhorar:</b> ${melhora}</p>`);
   },
   _pausados: {},
+  _mapaMLBSku: {}, // MLB → SKU
+
+  async _carregarMapaMLB() {
+    try {
+      const { data } = await Cloud.sb.from('ml_anuncios').select('mlb,sku,titulo');
+      this._mapaMLBSku = {};
+      (data||[]).forEach(r => { this._mapaMLBSku[r.mlb] = { sku: r.sku, titulo: r.titulo }; });
+      console.log(`Mapa MLB→SKU: ${Object.keys(this._mapaMLBSku).length} anúncios`);
+    } catch(e) { console.warn('ml_anuncios:', e.message); }
+  },
+
+  async _importarAnuncios(file) {
+    try {
+      const buf = await file.arrayBuffer();
+      const wb = XLSX.read(buf, { type: 'array' });
+      const ws = wb.Sheets['Anúncios'] || wb.Sheets[wb.SheetNames[wb.SheetNames.length-1]];
+      const raw = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+      // Encontra linha de cabeçalho com "Código do anúncio"
+      let hr = -1;
+      for (let i = 0; i < Math.min(10, raw.length); i++) {
+        if (raw[i].some(c => ('' + c).toLowerCase().includes('código do anúncio') || ('' + c).toLowerCase().includes('codigo do anuncio'))) {
+          hr = i; break;
+        }
+      }
+      if (hr < 0) { UI.toast('warn', 'Arquivo não reconhecido'); return; }
+      const header = raw[hr].map(c => ('' + c).trim());
+      const iMlb = header.findIndex(h => h.toLowerCase().includes('código do anúncio') || h.toLowerCase().includes('codigo do anuncio'));
+      const iSku = header.findIndex(h => h.toUpperCase() === 'SKU');
+      const iTit = header.findIndex(h => h.toLowerCase().includes('título') || h.toLowerCase() === 'title');
+      const records = [];
+      for (let i = hr + 1; i < raw.length; i++) {
+        const mlb = ('' + (raw[i][iMlb] || '')).trim();
+        const sku = ('' + (raw[i][iSku] || '')).trim().replace(/\.0$/, '');
+        const titulo = ('' + (raw[i][iTit] || '')).trim();
+        if (mlb && sku) records.push({ mlb, sku, titulo });
+      }
+      if (!records.length) { UI.toast('warn', 'Nenhum anúncio encontrado'); return; }
+      // Salva no Supabase em lotes
+      const lote = 100;
+      for (let i = 0; i < records.length; i += lote) {
+        await Cloud.sb.from('ml_anuncios').upsert(records.slice(i, i + lote));
+      }
+      this._mapaMLBSku = {};
+      records.forEach(r => { this._mapaMLBSku[r.mlb] = { sku: r.sku, titulo: r.titulo }; });
+      UI.toast('ok', `${records.length} anúncios importados e salvos!`);
+      this.render();
+    } catch(e) { UI.toast('warn', 'Erro: ' + e.message); }
+  },
 
   async _carregarPausados() {
     try {
