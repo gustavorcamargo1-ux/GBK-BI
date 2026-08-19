@@ -2657,6 +2657,72 @@ const Importer = {
         let _skipped=0;
         // não pulamos mais canceladas/devolvidas: importamos e MARCAMOS (situacao),
         // para excluir do faturamento e mostrar no relatório de Devoluções
+
+        // ── RATEIO DE PACOTES MULTIPRODUTO (Mercado Livre) ──────────────────────
+        // O relatório ML coloca taxa/frete/receita somente na linha-pai e deixa NaN nos filhos.
+        // ATENÇÃO: a coluna "Estado" aparece 2x (col 2 = status do pedido, col ~38 = UF do comprador).
+        // Usamos PRIMEIRA ocorrência. O pai é detectado por: receita_unitaria=NaN e pacote_col=''.
+        if(fixedMkt==='Mercado Livre'||State.pendingImport.presetMkt==='Mercado Livre'){
+          const _hdrs=State.pendingImport.headers||[];
+          // colIdx: PRIMEIRA ocorrência do nome (evita pegar a col duplicada de UF)
+          const colIdxFirst=name=>{ const k=Importer._nz(name); return _hdrs.findIndex(h=>Importer._nz(h)===k); };
+          const iPacote   =colIdxFirst('Pacote de diversos produtos');
+          const iReceita  =colIdxFirst('Preço unitário de venda do anúncio (BRL)'); // peso proporcional (preenchido nos filhos)
+          const iReceita2 =colIdxFirst('Receita por produtos (BRL)');               // total do pacote (preenchido no pai)
+          const iTaxa     =colIdxFirst('Tarifa de venda e impostos (BRL)');
+          const iFrete    =colIdxFirst('Tarifas de envio (BRL)');
+          const iFreteSub =colIdxFirst('Receita por envio (BRL)');
+          const iDescontos=colIdxFirst('Descontos e bônus');
+          const iLiquido  =colIdxFirst('Total (BRL)');
+          const getNum=(row,i)=>{ if(i<0) return 0; const v=row[i]; const n=parseFloat((''+v).replace(',','.')); return isNaN(n)?0:n; };
+          const isNanVal=v=>v===''||v==null||v===undefined||isNaN(parseFloat((''+v).replace(',','.')));
+          let pkgPai=null;
+          let pkgFilhos=[];
+          const _flushPkg=()=>{
+            if(!pkgPai||!pkgFilhos.length){ pkgPai=null; pkgFilhos=[]; return; }
+            const pesos=pkgFilhos.map(r=>{ const p=getNum(r,iReceita); return p>0?p:1; });
+            const total=pesos.reduce((s,p)=>s+p,0)||1;
+            pkgFilhos.forEach((r,i)=>{
+              const w=pesos[i]/total;
+              if(iTaxa>=0    && isNanVal(r[iTaxa]))     r[iTaxa]    =+(pkgPai.taxa    *w).toFixed(4);
+              if(iFrete>=0   && isNanVal(r[iFrete]))     r[iFrete]   =+(pkgPai.frete   *w).toFixed(4);
+              if(iFreteSub>=0&& isNanVal(r[iFreteSub]))  r[iFreteSub]=+(pkgPai.freteSub*w).toFixed(4);
+              if(iDescontos>=0&&isNanVal(r[iDescontos])) r[iDescontos]=+(pkgPai.descontos*w).toFixed(4);
+              if(iLiquido>=0 && isNanVal(r[iLiquido]))   r[iLiquido] =+(pkgPai.liquido *w).toFixed(4);
+              // valorBruto (Receita por produtos): se NaN no filho, ratear o total do pai
+              if(iReceita2>=0&& isNanVal(r[iReceita2]))  r[iReceita2]=+(pkgPai.receitaTotal*w).toFixed(4);
+            });
+            pkgPai=null; pkgFilhos=[];
+          };
+          data.forEach(r=>{
+            const pacoteCol=iPacote>=0?(''+r[iPacote]).trim().toLowerCase():'';
+            const recUnit  =iReceita >=0?r[iReceita] :'';
+            const recTotal =iReceita2>=0?r[iReceita2]:'';
+            // Linha-PAI do pacote: pacote_col vazio E receita_unitaria NaN E receita_total preenchida
+            const isPai=pacoteCol===''&&isNanVal(recUnit)&&!isNanVal(recTotal);
+            // Linha-FILHO: pacote_col='sim' E receita_total NaN
+            const isFilho=pacoteCol==='sim'&&isNanVal(recTotal);
+            if(isPai){
+              _flushPkg();
+              pkgPai={
+                taxa      :getNum(r,iTaxa),
+                frete     :getNum(r,iFrete),
+                freteSub  :getNum(r,iFreteSub),
+                descontos :getNum(r,iDescontos),
+                liquido   :getNum(r,iLiquido),
+                receitaTotal:getNum(r,iReceita2)
+              };
+              pkgFilhos=[];
+            } else if(isFilho&&pkgPai){
+              pkgFilhos.push(r);
+            } else {
+              _flushPkg();
+            }
+          });
+          _flushPkg();
+        }
+        // ── FIM RATEIO PACOTES ───────────────────────────────────────────────────
+
         const _rows=data;
         Importer._lastSkipped=0;
         const _headers=State.pendingImport.headers||[];
