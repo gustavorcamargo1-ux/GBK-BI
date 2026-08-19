@@ -2658,70 +2658,63 @@ const Importer = {
         // não pulamos mais canceladas/devolvidas: importamos e MARCAMOS (situacao),
         // para excluir do faturamento e mostrar no relatório de Devoluções
 
-        // ── RATEIO DE PACOTES MULTIPRODUTO (Mercado Livre) ──────────────────────
-        // O relatório ML coloca taxa/frete/receita somente na linha-pai e deixa NaN nos filhos.
-        // ATENÇÃO: a coluna "Estado" aparece 2x (col 2 = status do pedido, col ~38 = UF do comprador).
-        // Usamos PRIMEIRA ocorrência. O pai é detectado por: receita_unitaria=NaN e pacote_col=''.
+        // ── PRÉ-PROCESSAMENTO: mapear linhas ML para objeto {pedido,pacote,recUnit,recTotal,taxa,frete,...}
+        // usando PRIMEIRA ocorrência de cada header (evita bug col duplicada "Estado")
+        const _mlPkgMap=new Map(); // pedido -> {taxa,frete,freteSub,descontos,liquido,receitaTotal}
+        const _mlFilhos=new Set(); // pedidos filhos de pacote
         if(fixedMkt==='Mercado Livre'||State.pendingImport.presetMkt==='Mercado Livre'){
           const _hdrs=State.pendingImport.headers||[];
-          // colIdx: PRIMEIRA ocorrência do nome (evita pegar a col duplicada de UF)
-          const colIdxFirst=name=>{ const k=Importer._nz(name); return _hdrs.findIndex(h=>Importer._nz(h)===k); };
-          const iPacote   =colIdxFirst('Pacote de diversos produtos');
-          const iReceita  =colIdxFirst('Preço unitário de venda do anúncio (BRL)'); // peso proporcional (preenchido nos filhos)
-          const iReceita2 =colIdxFirst('Receita por produtos (BRL)');               // total do pacote (preenchido no pai)
-          const iTaxa     =colIdxFirst('Tarifa de venda e impostos (BRL)');
-          const iFrete    =colIdxFirst('Tarifas de envio (BRL)');
-          const iFreteSub =colIdxFirst('Receita por envio (BRL)');
-          const iDescontos=colIdxFirst('Descontos e bônus');
-          const iLiquido  =colIdxFirst('Total (BRL)');
-          const getNum=(row,i)=>{ if(i<0) return 0; const v=row[i]; const n=parseFloat((''+v).replace(',','.')); return isNaN(n)?0:n; };
-          const isNanVal=v=>v===''||v==null||v===undefined||isNaN(parseFloat((''+v).replace(',','.')));
-          let pkgPai=null;
-          let pkgFilhos=[];
-          const _flushPkg=()=>{
-            if(!pkgPai||!pkgFilhos.length){ pkgPai=null; pkgFilhos=[]; return; }
-            const pesos=pkgFilhos.map(r=>{ const p=getNum(r,iReceita); return p>0?p:1; });
-            const total=pesos.reduce((s,p)=>s+p,0)||1;
-            pkgFilhos.forEach((r,i)=>{
-              const w=pesos[i]/total;
-              if(iTaxa>=0    && isNanVal(r[iTaxa]))     r[iTaxa]    =+(pkgPai.taxa    *w).toFixed(4);
-              if(iFrete>=0   && isNanVal(r[iFrete]))     r[iFrete]   =+(pkgPai.frete   *w).toFixed(4);
-              if(iFreteSub>=0&& isNanVal(r[iFreteSub]))  r[iFreteSub]=+(pkgPai.freteSub*w).toFixed(4);
-              if(iDescontos>=0&&isNanVal(r[iDescontos])) r[iDescontos]=+(pkgPai.descontos*w).toFixed(4);
-              if(iLiquido>=0 && isNanVal(r[iLiquido]))   r[iLiquido] =+(pkgPai.liquido *w).toFixed(4);
-              // valorBruto (Receita por produtos): se NaN no filho, ratear o total do pai
-              if(iReceita2>=0&& isNanVal(r[iReceita2]))  r[iReceita2]=+(pkgPai.receitaTotal*w).toFixed(4);
+          const _idxFirst=name=>{ const k=Importer._nz(name); return _hdrs.findIndex(h=>Importer._nz(h)===k); };
+          const _iP =_idxFirst('Pacote de diversos produtos');
+          const _iRU=_idxFirst('Preço unitário de venda do anúncio (BRL)');
+          const _iRT=_idxFirst('Receita por produtos (BRL)');
+          const _iT =_idxFirst('Tarifa de venda e impostos (BRL)');
+          const _iF =_idxFirst('Tarifas de envio (BRL)');
+          const _iFS=_idxFirst('Receita por envio (BRL)');
+          const _iD =_idxFirst('Descontos e bônus');
+          const _iL =_idxFirst('Total (BRL)');
+          const _iN =_idxFirst('N.º de venda');
+          const _gn =(r,i)=>{ if(i<0) return 0; const v=r[i]; const n=parseFloat((''+v).replace(',','.')); return isNaN(n)?0:n; };
+          const _nan=v=>v===''||v==null||v===undefined||isNaN(parseFloat((''+v).replace(',','.')));
+          // Primeira passagem: identificar pais e filhos
+          let _curPai=null, _curFilhos=[];
+          const _flush2=()=>{
+            if(!_curPai||!_curFilhos.length){ _curPai=null; _curFilhos=[]; return; }
+            const pesos=_curFilhos.map(r=>{ const p=_gn(r,_iRU); return p>0?p:1; });
+            const tot=pesos.reduce((s,p)=>s+p,0)||1;
+            _curFilhos.forEach((r,i)=>{
+              const ped=_iN>=0?(''+r[_iN]).trim():'';
+              if(!ped) return;
+              const w=pesos[i]/tot;
+              _mlPkgMap.set(ped,{
+                taxa      :+(_curPai.taxa    *w).toFixed(4),
+                frete     :+(_curPai.frete   *w).toFixed(4),
+                freteSub  :+(_curPai.freteSub*w).toFixed(4),
+                descontos :+(_curPai.descontos*w).toFixed(4),
+                liquido   :+(_curPai.liquido  *w).toFixed(4),
+                valorBruto:+(_curPai.receitaTotal*w).toFixed(4)
+              });
+              _mlFilhos.add(ped);
             });
-            pkgPai=null; pkgFilhos=[];
+            _curPai=null; _curFilhos=[];
           };
           data.forEach(r=>{
-            const pacoteCol=iPacote>=0?(''+r[iPacote]).trim().toLowerCase():'';
-            const recUnit  =iReceita >=0?r[iReceita] :'';
-            const recTotal =iReceita2>=0?r[iReceita2]:'';
-            // Linha-PAI do pacote: pacote_col vazio E receita_unitaria NaN E receita_total preenchida
-            const isPai=pacoteCol===''&&isNanVal(recUnit)&&!isNanVal(recTotal);
-            // Linha-FILHO: pacote_col='sim' E receita_total NaN
-            const isFilho=pacoteCol==='sim'&&isNanVal(recTotal);
-            if(isPai){
-              _flushPkg();
-              pkgPai={
-                taxa      :getNum(r,iTaxa),
-                frete     :getNum(r,iFrete),
-                freteSub  :getNum(r,iFreteSub),
-                descontos :getNum(r,iDescontos),
-                liquido   :getNum(r,iLiquido),
-                receitaTotal:getNum(r,iReceita2)
-              };
-              pkgFilhos=[];
-            } else if(isFilho&&pkgPai){
-              pkgFilhos.push(r);
-            } else {
-              _flushPkg();
-            }
+            const pc=_iP>=0?(''+r[_iP]).trim().toLowerCase():'';
+            const ru=_iRU>=0?r[_iRU]:''; const rt=_iRT>=0?r[_iRT]:'';
+            const isPai=pc===''&&_nan(ru)&&!_nan(rt);
+            const isFilho=pc==='sim'&&_nan(rt);
+            if(isPai){ _flush2(); _curPai={taxa:_gn(r,_iT),frete:_gn(r,_iF),freteSub:_gn(r,_iFS),descontos:_gn(r,_iD),liquido:_gn(r,_iL),receitaTotal:_gn(r,_iRT)}; _curFilhos=[]; }
+            else if(isFilho&&_curPai){ _curFilhos.push(r); }
+            else { _flush2(); }
           });
-          _flushPkg();
+          _flush2();
+          console.log('[GBK-PKG] fixedMkt='+fixedMkt+' presetMkt='+State.pendingImport.presetMkt);
+          console.log('[GBK-PKG] _iP='+_iP+' _iRU='+_iRU+' _iRT='+_iRT+' _iT='+_iT+' _iF='+_iF);
+          console.log('[GBK-PKG] pacotes detectados='+_mlPkgMap.size+' filhos='+_mlFilhos.size);
+          if(_mlPkgMap.size){ console.log('[GBK-PKG] primeiro rateio:',JSON.stringify([..._mlPkgMap.entries()][0])); }
+          else { console.warn('[GBK-PKG] NENHUM PACOTE DETECTADO — verificar headers abaixo'); console.log('[GBK-PKG] headers[0..5]='+(State.pendingImport.headers||[]).slice(0,6).join(' | ')); const _s=data.slice(0,15).map(r=>'pc='+(r[_iP]??'?')+' ru='+(r[_iRU]??'?')+' rt='+(r[_iRT]??'?')); _s.forEach((s,i)=>console.log('[GBK-PKG] row'+i+': '+s)); }
         }
-        // ── FIM RATEIO PACOTES ───────────────────────────────────────────────────
+        // ── FIM PRÉ-PROCESSAMENTO PACOTES ────────────────────────────────────────
 
         const _rows=data;
         Importer._lastSkipped=0;
@@ -2755,6 +2748,18 @@ const Importer = {
           }
           rec.situacao=Importer._situacao(rec.marketplace,r,_hidx);
           if(rec.situacao==='ok'&&rec.marketplace==='TikTok Shop'&&(rec.valorBruto*rec.qtd)<0) rec.situacao='devolvida';
+          // ── APLICAR RATEIO DE PACOTE (ML): se este pedido é filho, substituir valores zerados
+          if(_mlPkgMap.size&&_mlFilhos.has(rec.pedido)){
+            const _rat=_mlPkgMap.get(rec.pedido);
+            if(_rat){
+              if(!rec.taxa)      rec.taxa      =_rat.taxa;
+              if(!rec.frete)     rec.frete     =_rat.frete;
+              if(!rec.freteSub)  rec.freteSub  =_rat.freteSub;
+              if(!rec.descontos) rec.descontos =_rat.descontos;
+              if(!rec.liquido)   rec.liquido   =_rat.liquido;
+              if(!rec.valorBruto)rec.valorBruto=_rat.valorBruto;
+            }
+          }
           return rec;
         }).filter(v=>v.sku||v.produto);
         records.forEach(v=>v.data=v.data?U.iso(v.data):'');
