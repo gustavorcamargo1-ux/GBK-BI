@@ -6326,7 +6326,30 @@ const Auditoria = {
       ${(dupExatas>0||multiLoja>0)?`<div class="aud-warn"><i class="fa-solid fa-triangle-exclamation"></i> <b>Possíveis duplicatas:</b> ${dupExatas} registro(s) com chave repetida${multiLoja?` · ${multiLoja} venda(s) em lojas diferentes`:''}. Use o <b>Verificar duplicidade</b> abaixo para limpar.</div>`:'<div class="aud-ok"><i class="fa-solid fa-circle-check"></i> Nenhuma duplicata exata detectada.</div>'}
       <h4 class="cob-h4">Por canal</h4>
       <div class="table-wrap"><table class="simple-table"><tr><th>Canal</th><th class="num">Pedidos</th><th class="num">Itens</th><th class="num">Receita bruta</th><th class="num">Descontos</th><th class="num">Receita líquida</th></tr>${canalRows}</table></div>
-      <p class="muted" style="margin-top:8px">Para bater com o ERP: compare a coluna <b>Pedidos</b> (não Itens) e confirme que o período e o filtro de marca/categoria estão iguais nos dois sistemas.</p>`;
+      <p class="muted" style="margin-top:8px">Para bater com o ERP: compare a coluna <b>Pedidos</b> (não Itens) e confirme que o período e o filtro de marca/categoria estão iguais nos dois sistemas.</p>
+      ${(()=>{
+        const comTaxaZerada=ok.filter(v=>!v.taxa||v.taxa===0);
+        if(!comTaxaZerada.length) return '<div class="aud-ok" style="margin-top:16px"><i class="fa-solid fa-circle-check"></i> <b>Taxas OK:</b> Nenhuma venda com taxa zerada encontrada.</div>';
+        const grupos={};
+        comTaxaZerada.forEach(v=>{
+          const mes=(v.data||'').slice(0,7)||'?';
+          const mk=v.marketplace||'?';
+          const k=mk+'||'+mes;
+          if(!grupos[k]) grupos[k]={mk,mes,count:0,rb:0,pedidos:new Set()};
+          grupos[k].count++;
+          grupos[k].rb+=(v.valorBruto||0)*(v.qtd||1);
+          grupos[k].pedidos.add(v.pedido);
+        });
+        const linhas=Object.values(grupos).sort((a,b)=>b.mes.localeCompare(a.mes)||(a.mk.localeCompare(b.mk)));
+        const rows=linhas.map(g=>'<tr><td>'+U.mktBadge(g.mk)+'</td><td class="num">'+g.mes+'</td><td class="num" style="color:var(--danger);font-weight:600">'+g.pedidos.size+'</td><td class="num">'+g.count+'</td><td class="num">'+U.brl(g.rb)+'</td></tr>').join('');
+        const totalPed=new Set(comTaxaZerada.map(v=>v.pedido)).size;
+        const totalRb=comTaxaZerada.reduce((s,v)=>s+(v.valorBruto||0)*(v.qtd||1),0);
+        return '<div class="aud-warn" style="margin-top:20px"><i class="fa-solid fa-triangle-exclamation"></i> <b>Taxas zeradas detectadas:</b> '+totalPed+' pedido(s) · '+comTaxaZerada.length+' item(s) · '+U.brl(totalRb)+' em receita bruta com taxa = R$0,00. Reimporte os relatórios dos períodos abaixo para corrigir.</div>'
+        +'<h4 class="cob-h4" style="margin-top:12px"><i class="fa-solid fa-circle-exclamation" style="color:var(--danger)"></i> Vendas com taxa zerada — por canal e mês</h4>'
+        +'<div class="table-wrap"><table class="simple-table"><tr><th>Canal</th><th class="num">Mês</th><th class="num">Pedidos</th><th class="num">Itens</th><th class="num">Receita bruta afetada</th></tr>'+rows+'</table></div>'
+        +'<p class="muted" style="margin-top:6px"><i class="fa-solid fa-lightbulb"></i> Baixe o relatório do período no marketplace e reimporte — o sistema sobrescreve automaticamente sem duplicar.</p>';
+      })()}
+    `;
   }
 };
 
