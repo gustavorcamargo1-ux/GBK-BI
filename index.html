@@ -2752,12 +2752,13 @@ const Importer = {
           if(_mlPkgMap.size&&_mlFilhos.has(rec.pedido)){
             const _rat=_mlPkgMap.get(rec.pedido);
             if(_rat){
-              if(!rec.taxa)      rec.taxa      =_rat.taxa;
-              if(!rec.frete)     rec.frete     =_rat.frete;
-              if(!rec.freteSub)  rec.freteSub  =_rat.freteSub;
-              if(!rec.descontos) rec.descontos =_rat.descontos;
-              if(!rec.liquido)   rec.liquido   =_rat.liquido;
-              if(!rec.valorBruto)rec.valorBruto=_rat.valorBruto;
+              rec.taxa      =_rat.taxa;
+              rec.frete     =_rat.frete;
+              rec.freteSub  =_rat.freteSub;
+              rec.descontos =_rat.descontos;
+              rec.liquido   =_rat.liquido;
+              if(!rec.valorBruto||rec.valorBruto===0) rec.valorBruto=_rat.valorBruto;
+              console.log('[GBK-PKG-APPLY] pedido='+rec.pedido+' sku='+rec.sku+' taxa='+rec.taxa+' frete='+rec.frete);
             }
           }
           return rec;
