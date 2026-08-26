@@ -1419,6 +1419,7 @@ textarea#tf-desc{min-height:170px !important;height:170px;max-height:50vh;resize
           <label class="pricing-chk"><input type="checkbox" id="pricing-haspreco"> Só com desconto</label>
           <label class="pricing-chk"><input type="checkbox" id="pricing-noean"> Só sem EAN</label>
           <button id="pricing-desc" class="ghost-btn sm"><i class="fa-solid fa-tags"></i> Aplicar desconto</button>
+          <button id="pricing-bulk-edit" class="ghost-btn sm" style="display:none"><i class="fa-solid fa-pen-to-square"></i> Editar selecionados (<span id="pricing-bulk-count">0</span>)</button>
           <button id="pricing-add" class="primary-btn sm"><i class="fa-solid fa-plus"></i> Adicionar produto</button>
         </div>
         <p class="muted" style="margin:2px 0 10px">Edite qualquer preço para ver a margem ao vivo (as cores seguem sua margem alvo). Nada é gravado até clicar em <b>Salvar preços</b>.</p>
@@ -4044,7 +4045,7 @@ const Pricing = {
     if((this._page||1)>pages) this._page=1; const pg=this._page||1;
     prods=prods.slice((pg-1)*perPage,pg*perPage);
     const _sc=this._sort||{col:'sku',dir:-1}; const _a=c=>_sc.col===c?(_sc.dir>0?' ▲':' ▼'):'';
-    const head=`<tr><th class="ps-sort" data-sort="sku">SKU${_a('sku')}</th><th>EAN</th><th class="col-prod ps-sort" data-sort="produto">Produto${_a('produto')}</th><th class="ps-sort" data-sort="marca">Marca${_a('marca')}</th><th class="num col-custo ps-sort" data-sort="custo">Custo${_a('custo')}</th>${this.mkts().map(m=>`<th class="num mk-h ps-sort ${this._mkClass(m)}" data-sort="mkt:${m}"><i class="fa-solid ${(MKT_BRAND[m]||{}).ic||''}"></i> ${m}${_a('mkt:'+m)}</th>`).join('')}</tr>`;
+    const head=`<tr><th style="width:32px"><input type="checkbox" id="pricing-chk-all" title="Selecionar todos"></th><th class="ps-sort" data-sort="sku">SKU${_a('sku')}</th><th>EAN</th><th class="col-prod ps-sort" data-sort="produto">Produto${_a('produto')}</th><th class="ps-sort" data-sort="marca">Marca${_a('marca')}</th><th class="num col-custo ps-sort" data-sort="custo">Custo${_a('custo')}</th>${this.mkts().map(m=>`<th class="num mk-h ps-sort ${this._mkClass(m)}" data-sort="mkt:${m}"><i class="fa-solid ${(MKT_BRAND[m]||{}).ic||''}"></i> ${m}${_a('mkt:'+m)}</th>`).join('')}</tr>`;
     const _vend={}; (State.enriched||[]).forEach(v=>{ _vend[v.sku]=(_vend[v.sku]||0)+(v.qtd||0); });
     const body=prods.map(p=>{
       const cells=this.mkts().map(m=>{
@@ -4057,13 +4058,35 @@ const Pricing = {
           <div class="ptm ${mc}" data-mt="${p.sku}|${m}">${r?U.pct(r.margemPct):'—'}</div>
           <div class="psug" data-ds="${p.sku}|${m}">${(dsc!=null&&dsc>0)?`<span class="pdesc">-${U.pct(dsc)}</span> · `:''}sug ${sug!=null?U.brl(sug):'—'}</div></td>`;
       }).join('');
-      return `<tr><td class="mono" data-label="SKU"><span class="pricing-skuv">${p.sku}</span> <button type="button" class="pricing-edit" data-sku="${p.sku}" title="Editar cadastro"><i class="fa-solid fa-pen"></i></button></td><td class="mono small" data-label="EAN">${p.ean||'—'}</td><td class="col-prod pricing-openprod" data-label="Produto" data-sku="${p.sku}" title="Ver raio-X do produto (histórico)">${p.produto||''}${this._badges(p,_vend,alvo)}</td><td class="small" data-label="Marca">${p.marca||'—'}</td><td class="num col-custo" data-label="Custo">${U.brl(p.custo)}</td>${cells}</tr>`;
+      return `<tr><td style="width:32px"><input type="checkbox" class="pricing-row-chk" data-sku="${p.sku}"></td><td class="mono" data-label="SKU"><span class="pricing-skuv">${p.sku}</span> <button type="button" class="pricing-edit" data-sku="${p.sku}" title="Editar cadastro"><i class="fa-solid fa-pen"></i></button></td><td class="mono small" data-label="EAN">${p.ean||'—'}</td><td class="col-prod pricing-openprod" data-label="Produto" data-sku="${p.sku}" title="Ver raio-X do produto (histórico)">${p.produto||''}${this._badges(p,_vend,alvo)}</td><td class="small" data-label="Marca">${p.marca||'—'}</td><td class="num col-custo" data-label="Custo">${U.brl(p.custo)}</td>${cells}</tr>`;
     }).join('');
     tb.innerHTML=head+(body||'<tr><td colspan="9" class="muted">Nenhum produto no filtro.</td></tr>');
     tb.querySelectorAll('input.ptest').forEach(inp=>inp.oninput=()=>this._editCell(inp,tb));
     tb.querySelectorAll('th.ps-sort').forEach(th=>th.onclick=()=>{ const c=th.dataset.sort; if(this._sort&&this._sort.col===c){ this._sort.dir*=-1; } else { this._sort={col:c,dir:(c==='produto'||c==='marca')?1:-1}; } this._page=1; this.renderTable(); });
     tb.querySelectorAll('td.pricing-openprod').forEach(td=>td.onclick=()=>this._raioX(td.dataset.sku));
     tb.querySelectorAll('button.pricing-edit').forEach(b=>b.onclick=e=>{ e.stopPropagation(); this._addModal(b.dataset.sku); });
+    // ── seleção em lote ──
+    const _updateBulkBtn=()=>{
+      const sel=[...tb.querySelectorAll('.pricing-row-chk:checked')];
+      const btn=document.getElementById('pricing-bulk-edit');
+      const cnt=document.getElementById('pricing-bulk-count');
+      if(btn){ btn.style.display=sel.length?'':'none'; }
+      if(cnt) cnt.textContent=sel.length;
+    };
+    const chkAll=document.getElementById('pricing-chk-all');
+    if(chkAll) chkAll.onchange=()=>{ tb.querySelectorAll('.pricing-row-chk').forEach(c=>c.checked=chkAll.checked); _updateBulkBtn(); };
+    tb.querySelectorAll('.pricing-row-chk').forEach(c=>c.onchange=()=>{
+      const all=tb.querySelectorAll('.pricing-row-chk');
+      const checked=tb.querySelectorAll('.pricing-row-chk:checked');
+      const ca=document.getElementById('pricing-chk-all');
+      if(ca) ca.indeterminate=checked.length>0&&checked.length<all.length, ca.checked=checked.length===all.length;
+      _updateBulkBtn();
+    });
+    const bulkBtn=document.getElementById('pricing-bulk-edit');
+    if(bulkBtn) bulkBtn.onclick=()=>{
+      const skus=[...tb.querySelectorAll('.pricing-row-chk:checked')].map(c=>c.dataset.sku);
+      if(skus.length) this._bulkEditModal(skus);
+    };
     this._renderPager(totalN,pages,pg);
     this._toggleBanner();
   },
@@ -4369,6 +4392,73 @@ const Pricing = {
       if(this.renderPicker) this.renderPicker();
       this.renderTable();
     }
+  },
+  _bulkEditModal(skus){
+    const erp=State.raw.erp||[];
+    const prodmeta=State.prodmeta||{};
+    const opts=arr=>[...new Set(arr.filter(Boolean))].sort((a,b)=>(''+a).localeCompare(b,'pt-BR')).map(x=>`<option value="${(''+x).replace(/"/g,'&quot;')}">`).join('');
+    const v=s=>(s==null?'':(''+s)).replace(/"/g,'&quot;');
+    const prods=skus.map(sku=>{ const er=erp.find(e=>e.sku===sku)||{sku}; const meta=prodmeta[sku]||{}; return {...er,ean:meta.ean||er.ean||''}; }).filter(Boolean);
+    const rows=prods.map(p=>`
+      <div class="cv-row" style="background:var(--panel-2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;margin-bottom:10px">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+          <span class="mono" style="font-size:12px;color:var(--txt-3);min-width:70px">${p.sku}</span>
+          <input class="pf-in be-nome" data-sku="${p.sku}" placeholder="Nome do produto" value="${v(p.produto)}" style="flex:1;font-size:14px">
+        </div>
+        <div style="display:grid;grid-template-columns:120px 120px 1fr 1fr 130px;gap:8px">
+          <label style="font-size:11px;color:var(--txt-3)">Custo (R$)<input class="pf-in be-custo" data-sku="${p.sku}" type="number" step="0.01" value="${p.custo!=null?p.custo:''}" style="margin-top:3px;display:block;width:100%"></label>
+          <label style="font-size:11px;color:var(--txt-3)">Preço tabela (R$)<input class="pf-in be-pv" data-sku="${p.sku}" type="number" step="0.01" value="${p.precoVenda!=null?p.precoVenda:''}" style="margin-top:3px;display:block;width:100%"></label>
+          <label style="font-size:11px;color:var(--txt-3)">Marca<input class="pf-in be-marca" data-sku="${p.sku}" list="be-marcas" value="${v(p.marca)}" style="margin-top:3px;display:block;width:100%"></label>
+          <label style="font-size:11px;color:var(--txt-3)">Categoria<input class="pf-in be-cat" data-sku="${p.sku}" list="be-cats" value="${v(p.categoria)}" style="margin-top:3px;display:block;width:100%"></label>
+          <label style="font-size:11px;color:var(--txt-3)">Fornecedor<input class="pf-in be-forn" data-sku="${p.sku}" list="be-forns" value="${v(p.fornecedor)}" style="margin-top:3px;display:block;width:100%"></label>
+        </div>
+        <label style="font-size:11px;color:var(--txt-3);margin-top:6px;display:block">EAN / GTIN<input class="pf-in be-ean" data-sku="${p.sku}" inputmode="numeric" placeholder="código de barras (opcional)" value="${v(p.ean)}" style="margin-top:3px;width:200px"></label>
+      </div>`).join('');
+    const html=`
+      <p class="muted" style="margin-bottom:10px"><i class="fa-solid fa-pen-to-square"></i> Editando <b>${prods.length} produto(s)</b>. Altere os campos desejados e clique em Salvar.</p>
+      <datalist id="be-marcas">${opts(erp.map(e=>e.marca))}</datalist>
+      <datalist id="be-cats">${opts(erp.map(e=>e.categoria))}</datalist>
+      <datalist id="be-forns">${opts(erp.map(e=>e.fornecedor))}</datalist>
+      <div id="be-rows" style="max-height:60vh;overflow-y:auto;padding-right:4px">${rows}</div>
+      <div id="be-err" class="login-error" style="display:none;margin-top:8px"></div>
+      <div style="display:flex;gap:8px;margin-top:12px">
+        <button type="button" id="be-cancel" class="ghost-btn" style="flex:1">Cancelar</button>
+        <button type="button" id="be-save" class="primary-btn" style="flex:2"><i class="fa-solid fa-floppy-disk"></i> Salvar ${prods.length} produto(s)</button>
+      </div>`;
+    this._modal(`Edição em lote — ${prods.length} produto(s)`, html);
+    const _mc=document.querySelector('#pricing-modal .mads-modal-card');
+    if(_mc) _mc.style.maxWidth='900px';
+    const cancelBtn=document.getElementById('be-cancel');
+    if(cancelBtn) cancelBtn.onclick=()=>{ const ov=document.getElementById('pricing-modal'); if(ov) ov.classList.remove('show'); };
+    const saveBtn=document.getElementById('be-save');
+    if(saveBtn) saveBtn.onclick=async()=>{
+      saveBtn.disabled=true; saveBtn.innerHTML='<i class="fa-solid fa-spinner fa-spin"></i> Salvando...';
+      const cvRows=document.querySelectorAll('#be-rows .cv-row');
+      let ok=0, errs=[];
+      for(const row of cvRows){
+        const sku=row.querySelector('.be-nome').dataset.sku;
+        const er=erp.find(e=>e.sku===sku)||{sku};
+        const g=cls=>(row.querySelector('.'+cls).value||'').trim();
+        const rec={sku, produto:g('be-nome')||er.produto||'', custo:U.parseNum(row.querySelector('.be-custo').value)||er.custo||0, precoVenda:U.parseNum(row.querySelector('.be-pv').value)||er.precoVenda||0, marca:g('be-marca')||er.marca||'', categoria:g('be-cat')||er.categoria||'', fornecedor:g('be-forn')||er.fornecedor||''};
+        const ean=g('be-ean').replace(/\D/g,'');
+        try{
+          await DB.put('erp',rec);
+          const idx=State.raw.erp.findIndex(e=>e.sku===sku);
+          if(idx>=0) State.raw.erp[idx]=rec; else State.raw.erp.push(rec);
+          if(ean){ const meta=State.prodmeta||{}; meta[sku]=Object.assign({},meta[sku]||{},{ean}); State.prodmeta=meta; try{ await DB.put('config',{k:'prodmeta',data:meta}); }catch(_){} }
+          ok++;
+        }catch(e){ errs.push(`${sku}: ${e.message||e}`); }
+      }
+      if(errs.length){
+        const err=document.getElementById('be-err');
+        if(err){ err.innerHTML='Erros:<br>'+errs.join('<br>'); err.style.display='block'; }
+        saveBtn.disabled=false; saveBtn.innerHTML=`<i class="fa-solid fa-floppy-disk"></i> Salvar ${prods.length} produto(s)`;
+      } else {
+        UI.toast('ok',`${ok} produto(s) atualizado(s) com sucesso`);
+        const ov=document.getElementById('pricing-modal'); if(ov) ov.classList.remove('show');
+        this.renderTable();
+      }
+    };
   },
   async _saveNew(){
     const g=id=>((document.getElementById(id)||{}).value||'');
