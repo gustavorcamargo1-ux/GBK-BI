@@ -4234,7 +4234,139 @@ const Pricing = {
     <p class="muted" style="margin-top:8px">${ed?'Salvar atualiza este produto na base (mesmo SKU).':'Entra na sua base (ERP). Se depois vier do Tiny com o mesmo SKU, será atualizado — sem duplicar.'}</p>`;
     this._modal(ed?'Editar produto':'Adicionar produto à base', html);
     const sv=document.getElementById('pf-save'); if(sv) sv.onclick=()=>this._saveNew();
+    if(ed){
+      const cloneBtn=document.createElement('button');
+      cloneBtn.type='button';
+      cloneBtn.className='ghost-btn';
+      cloneBtn.style.cssText='width:100%;margin-top:6px';
+      cloneBtn.innerHTML='<i class="fa-solid fa-copy"></i> Clonar com variações';
+      cloneBtn.onclick=()=>this._cloneVariacoesModal(er);
+      const saveBtn=document.getElementById('pf-save');
+      if(saveBtn&&saveBtn.parentNode) saveBtn.parentNode.insertBefore(cloneBtn, saveBtn.nextSibling);
+    }
     const focusId = ed ? 'pf-ean' : 'pf-prod'; const fc=document.getElementById(focusId); if(fc) setTimeout(()=>fc.focus(),60);
+  },
+  _cloneVariacoesModal(pai){
+    const nextSkuNum=()=>{
+      const skus=(State.raw.erp||[]).map(e=>parseInt((''+e.sku).replace(/\D/g,''))||0);
+      return Math.max(0,...skus)+1;
+    };
+    let _nextN=nextSkuNum();
+    const prefixo=(''+pai.sku).replace(/\d+$/,'');
+    const genSku=()=>{ const s=prefixo+(_nextN++); return s; };
+    const varRow=(idx,skuVal,nomeVal,custoVal,pvVal,eanVal)=>`
+      <div class="cv-row" id="cv-row-${idx}" style="display:grid;grid-template-columns:110px 1fr 90px 90px 110px 32px;gap:6px;align-items:center;margin-bottom:6px">
+        <input class="pf-in cv-sku" placeholder="SKU" value="${skuVal||''}" title="SKU da variação">
+        <input class="pf-in cv-nome" placeholder="Nome da variação" value="${nomeVal||''}" title="Nome completo do produto">
+        <input class="pf-in cv-custo" type="number" step="0.01" placeholder="Custo" value="${custoVal||''}" title="Custo (R$)">
+        <input class="pf-in cv-pv" type="number" step="0.01" placeholder="Preço tab." value="${pvVal||''}" title="Preço de tabela (R$)">
+        <input class="pf-in cv-ean" inputmode="numeric" placeholder="EAN (opcional)" value="${eanVal||''}" title="EAN/GTIN">
+        <button type="button" class="cv-del ghost-btn" style="padding:4px 8px;color:var(--danger)" title="Remover variação"><i class="fa-solid fa-trash"></i></button>
+      </div>`;
+    const html=`
+      <p class="muted" style="margin-bottom:10px">
+        Campos herdados do pai: <b>Marca</b> (${pai.marca||'—'}), <b>Categoria</b> (${pai.categoria||'—'}), <b>Fornecedor</b> (${pai.fornecedor||'—'}).
+        Preencha só o que muda em cada variação.
+      </p>
+      <div style="display:grid;grid-template-columns:110px 1fr 90px 90px 110px 32px;gap:6px;margin-bottom:4px">
+        <span class="muted" style="font-size:11px">SKU</span>
+        <span class="muted" style="font-size:11px">Nome do produto</span>
+        <span class="muted" style="font-size:11px">Custo (R$)</span>
+        <span class="muted" style="font-size:11px">Preço tab.</span>
+        <span class="muted" style="font-size:11px">EAN</span>
+        <span></span>
+      </div>
+      <div id="cv-rows">${varRow(0,genSku(),pai.produto,pai.custo,pai.precoVenda,'')}${varRow(1,genSku(),pai.produto,pai.custo,pai.precoVenda,'')}</div>
+      <button type="button" id="cv-add" class="ghost-btn" style="width:100%;margin-top:4px"><i class="fa-solid fa-plus"></i> Adicionar variação</button>
+      <div id="cv-err" class="login-error" style="display:none;margin-top:8px"></div>
+      <div id="cv-preview" style="margin-top:10px;display:none">
+        <p class="muted" style="font-size:12px;margin-bottom:4px"><i class="fa-solid fa-eye"></i> Prévia — confira antes de salvar:</p>
+        <div id="cv-preview-list"></div>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:12px">
+        <button type="button" id="cv-preview-btn" class="ghost-btn" style="flex:1"><i class="fa-solid fa-eye"></i> Pré-visualizar</button>
+        <button type="button" id="cv-save" class="primary-btn" style="flex:2"><i class="fa-solid fa-floppy-disk"></i> Salvar todas as variações</button>
+      </div>`;
+    this._modal(`Clonar variações de: ${pai.produto}`, html);
+    let _rowIdx=2;
+    const addBtn=document.getElementById('cv-add');
+    if(addBtn) addBtn.onclick=()=>{
+      const container=document.getElementById('cv-rows');
+      if(!container) return;
+      const div=document.createElement('div');
+      div.innerHTML=varRow(_rowIdx++,genSku(),pai.produto,pai.custo,pai.precoVenda,'');
+      const row=div.firstElementChild;
+      container.appendChild(row);
+      row.querySelector('.cv-nome').focus();
+      _bindDel(row);
+    };
+    const _bindDel=row=>{ const b=row.querySelector('.cv-del'); if(b) b.onclick=()=>{ const c=document.getElementById('cv-rows'); if(c&&c.children.length>1) row.remove(); else UI.toast('warn','Mínimo uma variação'); }; };
+    document.querySelectorAll('#cv-rows .cv-row').forEach(_bindDel);
+    const _getRows=()=>{
+      const rows=[...document.querySelectorAll('#cv-rows .cv-row')];
+      return rows.map(r=>({
+        sku:(r.querySelector('.cv-sku').value||'').trim(),
+        produto:(r.querySelector('.cv-nome').value||'').trim(),
+        custo:U.parseNum(r.querySelector('.cv-custo').value),
+        precoVenda:U.parseNum(r.querySelector('.cv-pv').value),
+        ean:(r.querySelector('.cv-ean').value||'').trim().replace(/\D/g,''),
+        marca:pai.marca||'', categoria:pai.categoria||'', fornecedor:pai.fornecedor||''
+      }));
+    };
+    const _validate=rows=>{
+      const err=document.getElementById('cv-err'); if(!err) return true;
+      const errs=[];
+      const skus=new Set();
+      rows.forEach((r,i)=>{
+        if(!r.sku) errs.push(`Linha ${i+1}: SKU obrigatório`);
+        if(!r.produto) errs.push(`Linha ${i+1}: Nome obrigatório`);
+        if(skus.has(r.sku)) errs.push(`SKU duplicado: ${r.sku}`);
+        skus.add(r.sku);
+        const existe=(State.raw.erp||[]).find(e=>e.sku===r.sku);
+        if(existe) errs.push(`SKU ${r.sku} já existe na base — será sobrescrito`);
+      });
+      if(errs.length){ err.innerHTML=errs.join('<br>'); err.style.display='block'; return false; }
+      err.style.display='none'; return true;
+    };
+    const prevBtn=document.getElementById('cv-preview-btn');
+    if(prevBtn) prevBtn.onclick=()=>{
+      const rows=_getRows();
+      if(!_validate(rows)) return;
+      const prev=document.getElementById('cv-preview');
+      const list=document.getElementById('cv-preview-list');
+      if(!prev||!list) return;
+      list.innerHTML='<table class="simple-table"><tr><th>SKU</th><th>Produto</th><th class="num">Custo</th><th class="num">Preço tab.</th><th>Marca</th><th>Categoria</th></tr>'+
+        rows.map(r=>`<tr><td class="mono">${r.sku}</td><td>${r.produto}</td><td class="num">${U.brl(r.custo)}</td><td class="num">${U.brl(r.precoVenda)}</td><td>${r.marca||'—'}</td><td>${r.categoria||'—'}</td></tr>`).join('')+
+        '</table>';
+      prev.style.display='block';
+    };
+    const saveBtn2=document.getElementById('cv-save');
+    if(saveBtn2) saveBtn2.onclick=()=>this._saveVariacoes(_getRows(), _validate);
+  },
+  async _saveVariacoes(rows, validateFn){
+    if(!validateFn(rows)) return;
+    const saveBtn=document.getElementById('cv-save');
+    if(saveBtn){ saveBtn.disabled=true; saveBtn.innerHTML='<i class="fa-solid fa-spinner fa-spin"></i> Salvando...'; }
+    let ok=0, errs=[];
+    for(const r of rows){
+      try{
+        const rec={sku:r.sku, produto:r.produto, custo:r.custo, precoVenda:r.precoVenda, marca:r.marca, categoria:r.categoria, fornecedor:r.fornecedor};
+        await DB.put('erp', rec);
+        if(r.ean){ const meta=Object.assign({},State.prodmeta||{}); meta[r.sku]=Object.assign({},meta[r.sku]||{},{ean:r.ean}); State.prodmeta=meta; try{ await DB.put('config',{k:'prodmeta',data:meta}); }catch(_){} }
+        State.raw.erp=(State.raw.erp||[]).filter(e=>e.sku!==r.sku); State.raw.erp.push(rec);
+        ok++;
+      }catch(e){ errs.push(`${r.sku}: ${e.message||e}`); }
+    }
+    if(errs.length){
+      const err=document.getElementById('cv-err');
+      if(err){ err.innerHTML='Alguns erros:<br>'+errs.join('<br>'); err.style.display='block'; }
+      if(saveBtn){ saveBtn.disabled=false; saveBtn.innerHTML='<i class="fa-solid fa-floppy-disk"></i> Salvar todas as variações'; }
+    } else {
+      UI.toast('ok', `${ok} variação(ões) cadastrada(s) com sucesso`);
+      const ov=document.getElementById('pricing-modal'); if(ov) ov.classList.remove('show');
+      if(this.renderPicker) this.renderPicker();
+      this.renderTable();
+    }
   },
   async _saveNew(){
     const g=id=>((document.getElementById(id)||{}).value||'');
@@ -6328,7 +6460,7 @@ const Auditoria = {
       <div class="table-wrap"><table class="simple-table"><tr><th>Canal</th><th class="num">Pedidos</th><th class="num">Itens</th><th class="num">Receita bruta</th><th class="num">Descontos</th><th class="num">Receita líquida</th></tr>${canalRows}</table></div>
       <p class="muted" style="margin-top:8px">Para bater com o ERP: compare a coluna <b>Pedidos</b> (não Itens) e confirme que o período e o filtro de marca/categoria estão iguais nos dois sistemas.</p>
       ${(()=>{
-        const comTaxaZerada=ok.filter(v=>!v.taxa||v.taxa===0);
+        const comTaxaZerada=ok.filter(v=>(!v.taxa||v.taxa===0)&&(!v.situacao||v.situacao==='ok'));
         if(!comTaxaZerada.length) return '<div class="aud-ok" style="margin-top:16px"><i class="fa-solid fa-circle-check"></i> <b>Taxas OK:</b> Nenhuma venda com taxa zerada encontrada.</div>';
         const grupos={};
         comTaxaZerada.forEach(v=>{
