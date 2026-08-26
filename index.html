@@ -4255,27 +4255,25 @@ const Pricing = {
     const prefixo=(''+pai.sku).replace(/\d+$/,'');
     const genSku=()=>{ const s=prefixo+(_nextN++); return s; };
     const varRow=(idx,skuVal,nomeVal,custoVal,pvVal,eanVal)=>`
-      <div class="cv-row" id="cv-row-${idx}" style="display:grid;grid-template-columns:110px 1fr 90px 90px 110px 32px;gap:6px;align-items:center;margin-bottom:6px">
-        <input class="pf-in cv-sku" placeholder="SKU" value="${skuVal||''}" title="SKU da variação">
-        <input class="pf-in cv-nome" placeholder="Nome da variação" value="${nomeVal||''}" title="Nome completo do produto">
-        <input class="pf-in cv-custo" type="number" step="0.01" placeholder="Custo" value="${custoVal||''}" title="Custo (R$)">
-        <input class="pf-in cv-pv" type="number" step="0.01" placeholder="Preço tab." value="${pvVal||''}" title="Preço de tabela (R$)">
-        <input class="pf-in cv-ean" inputmode="numeric" placeholder="EAN (opcional)" value="${eanVal||''}" title="EAN/GTIN">
-        <button type="button" class="cv-del ghost-btn" style="padding:4px 8px;color:var(--danger)" title="Remover variação"><i class="fa-solid fa-trash"></i></button>
+      <div class="cv-row" id="cv-row-${idx}" style="background:var(--panel-2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;margin-bottom:10px">
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px">
+          <span style="font-size:11px;color:var(--txt-3);font-weight:600;min-width:30px">#${idx+1}</span>
+          <input class="pf-in cv-nome" placeholder="Nome completo da variação (ex: Shampoo Marula 500ml)" value="${nomeVal||''}" title="Nome completo do produto" style="flex:1;font-size:14px">
+          <button type="button" class="cv-del ghost-btn" style="padding:4px 8px;color:var(--danger);flex-shrink:0" title="Remover variação"><i class="fa-solid fa-trash"></i></button>
+        </div>
+        <div style="display:grid;grid-template-columns:130px 120px 120px 1fr;gap:8px;align-items:center">
+          <label style="font-size:11px;color:var(--txt-3)">SKU<input class="pf-in cv-sku" placeholder="ex: 1001256" value="${skuVal||''}" title="SKU da variação" style="margin-top:3px;display:block;width:100%"></label>
+          <label style="font-size:11px;color:var(--txt-3)">Custo (R$)<input class="pf-in cv-custo" type="number" step="0.01" placeholder="0,00" value="${custoVal||''}" title="Custo (R$)" style="margin-top:3px;display:block;width:100%"></label>
+          <label style="font-size:11px;color:var(--txt-3)">Preço de tabela (R$)<input class="pf-in cv-pv" type="number" step="0.01" placeholder="0,00" value="${pvVal||''}" title="Preço de tabela (R$)" style="margin-top:3px;display:block;width:100%"></label>
+          <label style="font-size:11px;color:var(--txt-3)">EAN / GTIN (opcional)<input class="pf-in cv-ean" inputmode="numeric" placeholder="código de barras" value="${eanVal||''}" title="EAN/GTIN" style="margin-top:3px;display:block;width:100%"></label>
+        </div>
       </div>`;
     const html=`
       <p class="muted" style="margin-bottom:10px">
         Campos herdados do pai: <b>Marca</b> (${pai.marca||'—'}), <b>Categoria</b> (${pai.categoria||'—'}), <b>Fornecedor</b> (${pai.fornecedor||'—'}).
         Preencha só o que muda em cada variação.
       </p>
-      <div style="display:grid;grid-template-columns:110px 1fr 90px 90px 110px 32px;gap:6px;margin-bottom:4px">
-        <span class="muted" style="font-size:11px">SKU</span>
-        <span class="muted" style="font-size:11px">Nome do produto</span>
-        <span class="muted" style="font-size:11px">Custo (R$)</span>
-        <span class="muted" style="font-size:11px">Preço tab.</span>
-        <span class="muted" style="font-size:11px">EAN</span>
-        <span></span>
-      </div>
+      <p class="muted" style="font-size:12px;margin-bottom:8px"><i class="fa-solid fa-lightbulb"></i> Edite o nome de cada variação e ajuste custo/preço. SKU é gerado automaticamente mas pode ser alterado.</p>
       <div id="cv-rows">${varRow(0,genSku(),pai.produto,pai.custo,pai.precoVenda,'')}${varRow(1,genSku(),pai.produto,pai.custo,pai.precoVenda,'')}</div>
       <button type="button" id="cv-add" class="ghost-btn" style="width:100%;margin-top:4px"><i class="fa-solid fa-plus"></i> Adicionar variação</button>
       <div id="cv-err" class="login-error" style="display:none;margin-top:8px"></div>
@@ -4288,13 +4286,17 @@ const Pricing = {
         <button type="button" id="cv-save" class="primary-btn" style="flex:2"><i class="fa-solid fa-floppy-disk"></i> Salvar todas as variações</button>
       </div>`;
     this._modal(`Clonar variações de: ${pai.produto}`, html);
+    // ampliar modal para variações
+    const _mc=document.querySelector('#pricing-modal .mads-modal-card');
+    if(_mc) _mc.style.maxWidth='860px';
     let _rowIdx=2;
     const addBtn=document.getElementById('cv-add');
     if(addBtn) addBtn.onclick=()=>{
       const container=document.getElementById('cv-rows');
       if(!container) return;
+      const curIdx=container.children.length;
       const div=document.createElement('div');
-      div.innerHTML=varRow(_rowIdx++,genSku(),pai.produto,pai.custo,pai.precoVenda,'');
+      div.innerHTML=varRow(curIdx,genSku(),pai.produto,pai.custo,pai.precoVenda,'');
       const row=div.firstElementChild;
       container.appendChild(row);
       row.querySelector('.cv-nome').focus();
