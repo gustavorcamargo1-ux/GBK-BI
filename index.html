@@ -1420,6 +1420,7 @@ textarea#tf-desc{min-height:170px !important;height:170px;max-height:50vh;resize
           <label class="pricing-chk"><input type="checkbox" id="pricing-noean"> Só sem EAN</label>
           <button id="pricing-desc" class="ghost-btn sm"><i class="fa-solid fa-tags"></i> Aplicar desconto</button>
           <button id="pricing-bulk-edit" class="ghost-btn sm" style="display:none"><i class="fa-solid fa-pen-to-square"></i> Editar selecionados (<span id="pricing-bulk-count">0</span>)</button>
+          <button id="pricing-bulk-price" class="ghost-btn sm" style="display:none"><i class="fa-solid fa-calculator"></i> Precificar selecionados (<span id="pricing-bulk-price-count">0</span>)</button>
           <button id="pricing-add" class="primary-btn sm"><i class="fa-solid fa-plus"></i> Adicionar produto</button>
         </div>
         <p class="muted" style="margin:2px 0 10px">Edite qualquer preço para ver a margem ao vivo (as cores seguem sua margem alvo). Nada é gravado até clicar em <b>Salvar preços</b>.</p>
@@ -3910,6 +3911,30 @@ const Pricing = {
     rows.forEach(r=>{ rb+=r.receitaBruta||0; tx+=r.taxas||0; fr+=r.frete||0; q+=r.qtd||0; });
     return { feePct: rb>0?tx/rb*100:0, freteUnit: q>0?fr/q:0, n:rows.length };
   },
+  // taxa média ponderada por receita bruta, por SKU + canal
+  _buildSkuStats(){
+    if(this.__skuStats) return this.__skuStats;
+    const map={}; // map[sku][marketplace] = {rb, tx, fr, n}
+    (State.enriched||[]).forEach(r=>{
+      const s=r.sku, m=r.marketplace;
+      if(!s||!m) return;
+      if(!map[s]) map[s]={};
+      if(!map[s][m]) map[s][m]={rb:0,tx:0,fr:0,n:0};
+      const rb=r.receitaBruta||0;
+      map[s][m].rb+=rb;
+      map[s][m].tx+=r.taxas||0;
+      map[s][m].fr+=r.frete||0;
+      map[s][m].n++;
+    });
+    this.__skuStats=map;
+    return map;
+  },
+  _skuStat(sku,m){
+    const map=this._buildSkuStats();
+    const d=(map[sku]||{})[m];
+    if(!d||!d.rb) return null;
+    return { feePct:d.tx/d.rb*100, freteMed:d.fr/d.n, n:d.n, rb:d.rb };
+  },
   productList(){
     return (State.raw.erp||[]).filter(e=>e.sku).map(e=>{const sku=''+e.sku;const meta=(State.prodmeta&&State.prodmeta[sku])||{};return {sku,produto:e.produto||'',custo:e.custo||0,pv:e.precoVenda||0,marca:e.marca||meta.marca||'',categoria:e.categoria||'',ean:e.ean||meta.ean||''};});
   },
@@ -4011,6 +4036,7 @@ const Pricing = {
   },
   renderTable(){
     const tb=document.getElementById('pricing-table'); if(!tb) return;
+    this.__skuStats=null; // invalidar cache de stats por SKU
     this.__pv=null;
     this._fillBrands();
     const t=this.target(), alvo=t;
@@ -4053,9 +4079,24 @@ const Pricing = {
         const val=cur!=null?cur:(p.pv>0?p.pv:(sug!=null?sug:''));
         const r=(val!==''&&p.custo>0)?this.calc(cfg,p.custo,+val,this._ov(p.sku,m)):null;
         const mc=r?(r.margemPct>=alvo?'pos':r.margemPct>=0?'warn-t':'neg'):'';
+        // taxa real média ponderada por SKU + canal
+        const rs=this._skuStat(p.sku,m);
+        let realBlock='';
+        if(rs&&p.custo>0&&val!==''){
+          // margem real: usa taxa real média em vez da taxa configurada
+          const cfgReal=Object.assign({},cfg,{fee:rs.feePct,frete:rs.freteMed});
+          const rReal=this.calc(cfgReal,p.custo,+val,this._ov(p.sku,m));
+          const mcReal=rReal.margemPct>=alvo?'pos':rReal.margemPct>=0?'warn-t':'neg';
+          realBlock=`<div class="ptm-real" style="margin-top:3px;font-size:10px;display:flex;gap:4px;justify-content:flex-end;align-items:center">
+            <span style="color:var(--txt-3)">real:</span>
+            <span class="ptm ${mcReal}" style="font-size:11px;padding:1px 5px">${U.pct(rReal.margemPct)} <span style="font-size:9px;opacity:.7">●</span></span>
+            <span style="color:var(--txt-3);font-size:10px" title="${rs.n} venda(s) analisada(s)">taxa ${U.pct(rs.feePct)} · ${rs.n}v</span>
+          </div>`;
+        }
         return `<td class="num pcell mk-c ${this._mkClass(m)}" data-label="${m}">
           <input class="ptest" type="number" step="0.01" data-sku="${p.sku}" data-m="${m}" value="${val!==''?(+val).toFixed(2):''}" placeholder="${sug!=null?sug.toFixed(2):''}">
-          <div class="ptm ${mc}" data-mt="${p.sku}|${m}">${r?U.pct(r.margemPct):'—'}</div>
+          <div class="ptm ${mc}" data-mt="${p.sku}|${m}" style="font-size:11px;color:var(--txt-3);margin-top:1px">${r?'<span style=\'font-size:9px;opacity:.6\'>sim:</span> '+U.pct(r.margemPct):'—'}</div>
+          ${realBlock}
           <div class="psug" data-ds="${p.sku}|${m}">${(dsc!=null&&dsc>0)?`<span class="pdesc">-${U.pct(dsc)}</span> · `:''}sug ${sug!=null?U.brl(sug):'—'}</div></td>`;
       }).join('');
       return `<tr><td style="width:32px"><input type="checkbox" class="pricing-row-chk" data-sku="${p.sku}"></td><td class="mono" data-label="SKU"><span class="pricing-skuv">${p.sku}</span> <button type="button" class="pricing-edit" data-sku="${p.sku}" title="Editar cadastro"><i class="fa-solid fa-pen"></i></button></td><td class="mono small" data-label="EAN">${p.ean||'—'}</td><td class="col-prod pricing-openprod" data-label="Produto" data-sku="${p.sku}" title="Ver raio-X do produto (histórico)">${p.produto||''}${this._badges(p,_vend,alvo)}</td><td class="small" data-label="Marca">${p.marca||'—'}</td><td class="num col-custo" data-label="Custo">${U.brl(p.custo)}</td>${cells}</tr>`;
@@ -4070,8 +4111,12 @@ const Pricing = {
       const sel=[...tb.querySelectorAll('.pricing-row-chk:checked')];
       const btn=document.getElementById('pricing-bulk-edit');
       const cnt=document.getElementById('pricing-bulk-count');
+      const btn2=document.getElementById('pricing-bulk-price');
+      const cnt2=document.getElementById('pricing-bulk-price-count');
       if(btn){ btn.style.display=sel.length?'':'none'; }
       if(cnt) cnt.textContent=sel.length;
+      if(btn2){ btn2.style.display=sel.length?'':'none'; }
+      if(cnt2) cnt2.textContent=sel.length;
     };
     const chkAll=document.getElementById('pricing-chk-all');
     if(chkAll) chkAll.onchange=()=>{ tb.querySelectorAll('.pricing-row-chk').forEach(c=>c.checked=chkAll.checked); _updateBulkBtn(); };
@@ -4086,6 +4131,11 @@ const Pricing = {
     if(bulkBtn) bulkBtn.onclick=()=>{
       const skus=[...tb.querySelectorAll('.pricing-row-chk:checked')].map(c=>c.dataset.sku);
       if(skus.length) this._bulkEditModal(skus);
+    };
+    const bulkPriceBtn=document.getElementById('pricing-bulk-price');
+    if(bulkPriceBtn) bulkPriceBtn.onclick=()=>{
+      const skus=[...tb.querySelectorAll('.pricing-row-chk:checked')].map(c=>c.dataset.sku);
+      if(skus.length) this._bulkPriceModal(skus);
     };
     this._renderPager(totalN,pages,pg);
     this._toggleBanner();
@@ -4393,6 +4443,139 @@ const Pricing = {
       this.renderTable();
     }
   },
+  _bulkPriceModal(skus){
+    const prods=this.productList().filter(p=>skus.includes(p.sku));
+    const alvo=this.target();
+    // valores iniciais: média dos overrides já salvos nos SKUs selecionados
+    const _avgOv=(m,campo)=>{
+      const vals=skus.map(s=>{ const o=this._ov(s,m); return o[campo]!=null?o[campo]:null; }).filter(v=>v!=null);
+      return vals.length? +(vals.reduce((a,b)=>a+b,0)/vals.length).toFixed(2) : '';
+    };
+    const _avgDesc=(m)=>{
+      const vals=skus.map(s=>{ const d=(State.descontos&&State.descontos[s]&&State.descontos[s][m]); return d!=null?d:null; }).filter(v=>v!=null);
+      return vals.length? +(vals.reduce((a,b)=>a+b,0)/vals.length).toFixed(4) : null;
+    };
+    // custo médio dos produtos selecionados
+    const custoMed=prods.length? +(prods.reduce((s,p)=>s+p.custo,0)/prods.length).toFixed(2) : 0;
+    const pvMed=prods.length? +(prods.reduce((s,p)=>s+(p.pv||0),0)/prods.length).toFixed(2) : 0;
+    const mktCards=this.mkts().map(m=>{
+      const cfg=this.cfg(m);
+      const taxaOv=_avgOv(m,'taxa');
+      const freteOv=_avgOv(m,'frete');
+      const descOv=_avgDesc(m);
+      const precoOv=descOv!=null&&pvMed>0? +(pvMed*(1-descOv/100)).toFixed(2) : (pvMed||'');
+      const b=MKT_BRAND[m]||{};
+      return `<div class="bp-card" data-m="${m}" style="background:var(--panel-2);border:1px solid var(--border);border-radius:10px;padding:14px;flex:1;min-width:200px">
+        <div style="background:${b.cor||'#333'};color:#fff;border-radius:6px;padding:6px 10px;font-weight:700;font-size:13px;margin-bottom:12px;display:flex;align-items:center;gap:6px">
+          <i class="fa-solid ${b.ic||''}"></i> ${m}
+        </div>
+        <label style="font-size:11px;color:var(--txt-3);display:block;margin-bottom:8px">Preço de venda (R$)
+          <input class="pf-in bp-preco" data-m="${m}" type="number" step="0.01" value="${precoOv}" placeholder="ex: 49,90" style="margin-top:3px;display:block;width:100%;font-size:15px;font-weight:600">
+        </label>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+          <label style="font-size:11px;color:var(--txt-3)">Taxa R$
+            <input class="pf-in bp-taxa" data-m="${m}" type="number" step="0.01" value="${taxaOv}" placeholder="${cfg.fee?U.round(cfg.fee,2):''}" style="margin-top:3px;display:block;width:100%">
+          </label>
+          <label style="font-size:11px;color:var(--txt-3)">Frete R$
+            <input class="pf-in bp-frete" data-m="${m}" type="number" step="0.01" value="${freteOv}" placeholder="${cfg.frete?U.round(cfg.frete,2):''}" style="margin-top:3px;display:block;width:100%">
+          </label>
+        </div>
+        <div class="bp-result" data-m="${m}" style="font-size:13px;min-height:32px;padding:6px 8px;background:var(--panel-1);border-radius:6px;color:var(--txt-2)">—</div>
+      </div>`;
+    }).join('');
+    const html=`
+      <p class="muted" style="margin-bottom:4px"><i class="fa-solid fa-calculator"></i> Definindo precificação para <b>${prods.length} produto(s)</b>. Os valores serão aplicados igualmente a todos.</p>
+      <p class="muted" style="margin-bottom:12px;font-size:12px">Custo médio: <b>R$ ${custoMed}</b> · Preço tabela médio: <b>R$ ${pvMed||'—'}</b></p>
+      <div id="bp-cards" style="display:flex;gap:10px;flex-wrap:wrap">${mktCards}</div>
+      <div id="bp-preview" style="margin-top:14px;display:none">
+        <p class="muted" style="font-size:12px;margin-bottom:6px"><i class="fa-solid fa-eye"></i> Prévia — margem resultante por produto:</p>
+        <div id="bp-preview-list" style="max-height:240px;overflow-y:auto"></div>
+      </div>
+      <div id="bp-err" class="login-error" style="display:none;margin-top:8px"></div>
+      <div style="display:flex;gap:8px;margin-top:14px">
+        <button type="button" id="bp-preview-btn" class="ghost-btn" style="flex:1"><i class="fa-solid fa-eye"></i> Pré-visualizar</button>
+        <button type="button" id="bp-save" class="primary-btn" style="flex:2"><i class="fa-solid fa-floppy-disk"></i> Salvar para ${prods.length} produto(s)</button>
+      </div>`;
+    this._modal(`Precificação em lote — ${prods.length} produto(s)`, html);
+    const _mc=document.querySelector('#pricing-modal .mads-modal-card');
+    if(_mc) _mc.style.maxWidth='940px';
+    // calcular e atualizar resultado ao vivo
+    const _recalc=()=>{
+      this.mkts().forEach(m=>{
+        const res=document.querySelector(`.bp-result[data-m="${m}"]`);
+        if(!res) return;
+        const preco=U.parseNum((document.querySelector(`.bp-preco[data-m="${m}"]`)||{}).value);
+        const taxa=U.parseNum((document.querySelector(`.bp-taxa[data-m="${m}"]`)||{}).value);
+        const frete=U.parseNum((document.querySelector(`.bp-frete[data-m="${m}"]`)||{}).value);
+        if(!(preco>0)||!(custoMed>0)){ res.innerHTML='<span style="color:var(--txt-3)">Preencha o preço e custo</span>'; return; }
+        const cfgReal=Object.assign({},this.cfg(m));
+        const ov={};
+        if(taxa>0) ov.taxa=taxa;
+        if(frete>0) ov.frete=frete;
+        const r=this.calc(cfgReal,custoMed,preco,ov);
+        const mc=r.margemPct>=alvo?'var(--success)':r.margemPct>=0?'var(--warn)':'var(--danger)';
+        res.innerHTML=`Margem: <b style="color:${mc}">${U.pct(r.margemPct)}</b> · Lucro: R$ ${U.round(r.lucro,2)} · Repasse: R$ ${U.round(r.repasse,2)}`;
+      });
+    };
+    document.querySelectorAll('.bp-preco,.bp-taxa,.bp-frete').forEach(i=>i.oninput=_recalc);
+    _recalc();
+    // prévia por produto
+    const prevBtn=document.getElementById('bp-preview-btn');
+    if(prevBtn) prevBtn.onclick=()=>{
+      const prev=document.getElementById('bp-preview');
+      const list=document.getElementById('bp-preview-list');
+      if(!prev||!list) return;
+      const rows=prods.map(p=>{
+        const cells=this.mkts().map(m=>{
+          const preco=U.parseNum((document.querySelector(`.bp-preco[data-m="${m}"]`)||{}).value);
+          const taxa=U.parseNum((document.querySelector(`.bp-taxa[data-m="${m}"]`)||{}).value);
+          const frete=U.parseNum((document.querySelector(`.bp-frete[data-m="${m}"]`)||{}).value);
+          if(!(preco>0)||!(p.custo>0)) return `<td class="num">—</td>`;
+          const ov={}; if(taxa>0) ov.taxa=taxa; if(frete>0) ov.frete=frete;
+          const r=this.calc(this.cfg(m),p.custo,preco,ov);
+          const mc=r.margemPct>=alvo?'pos':r.margemPct>=0?'warn-t':'neg';
+          return `<td class="num"><span class="${mc}">${U.pct(r.margemPct)}</span></td>`;
+        }).join('');
+        return `<tr><td class="mono" style="font-size:12px">${p.sku}</td><td style="font-size:12px">${p.produto}</td><td class="num">${U.brl(p.custo)}</td>${cells}</tr>`;
+      }).join('');
+      list.innerHTML=`<table class="simple-table"><tr><th>SKU</th><th>Produto</th><th class="num">Custo</th>${this.mkts().map(m=>`<th class="num">${m}</th>`).join('')}</tr>${rows}</table>`;
+      prev.style.display='block';
+    };
+    // salvar
+    const saveBtn=document.getElementById('bp-save');
+    if(saveBtn) saveBtn.onclick=async()=>{
+      saveBtn.disabled=true; saveBtn.innerHTML='<i class="fa-solid fa-spinner fa-spin"></i> Salvando...';
+      const descs=JSON.parse(JSON.stringify(State.descontos||{}));
+      const ovs=JSON.parse(JSON.stringify(State.precoOverrides||{}));
+      skus.forEach(sku=>{
+        const p=prods.find(x=>x.sku===sku);
+        const pvv=p?p.pv:0;
+        descs[sku]=descs[sku]||{}; ovs[sku]=ovs[sku]||{};
+        this.mkts().forEach(m=>{
+          const preco=U.parseNum((document.querySelector(`.bp-preco[data-m="${m}"]`)||{}).value);
+          const taxa=U.parseNum((document.querySelector(`.bp-taxa[data-m="${m}"]`)||{}).value);
+          const frete=U.parseNum((document.querySelector(`.bp-frete[data-m="${m}"]`)||{}).value);
+          if(preco>0&&pvv>0) descs[sku][m]=+((pvv-preco)/pvv*100).toFixed(4); else delete descs[sku][m];
+          const o={}; if(taxa>0) o.taxa=+taxa.toFixed(2); if(frete>0) o.frete=+frete.toFixed(2);
+          if(Object.keys(o).length) ovs[sku][m]=o; else delete ovs[sku][m];
+        });
+        if(!Object.keys(descs[sku]).length) delete descs[sku];
+        if(!Object.keys(ovs[sku]).length) delete ovs[sku];
+      });
+      try{
+        State.descontos=descs; State.precoOverrides=ovs;
+        await DB.put('config',{k:'descontos',data:descs});
+        await DB.put('config',{k:'precoOverrides',data:ovs});
+        UI.toast('ok',`Precificação salva para ${skus.length} produto(s)`);
+        const modal=document.getElementById('pricing-modal'); if(modal) modal.classList.remove('show');
+        this.renderTable(); this.renderCards();
+      }catch(e){
+        const err=document.getElementById('bp-err');
+        if(err){ err.textContent='Erro ao salvar: '+(e.message||e); err.style.display='block'; }
+        saveBtn.disabled=false; saveBtn.innerHTML=`<i class="fa-solid fa-floppy-disk"></i> Salvar para ${prods.length} produto(s)`;
+      }
+    };
+  },
   _bulkEditModal(skus){
     const erp=State.raw.erp||[];
     const prodmeta=State.prodmeta||{};
@@ -4563,10 +4746,23 @@ const Pricing = {
     const v=U.parseNum(inp.value);
     if(inp.value===''||!(v>0)){ delete w[sku][m]; } else { w[sku][m]=+(((pv-v)/pv)*100).toFixed(4); }
     this._dirty=true; this._toggleBanner();
+    const alvo=this.target();
+    // atualizar margem simulada
     const cell=tb.querySelector(`[data-mt="${sku}|${m}"]`);
     if(cell){
       if(inp.value===''||!(v>0)){ cell.textContent='—'; cell.className='ptm'; }
-      else{ const r=this.calc(this.cfg(m),custo,v,this._ov(sku,m)), alvo=this.target(); cell.textContent=U.pct(r.margemPct); cell.className='ptm '+(r.margemPct>=alvo?'pos':r.margemPct>=0?'warn-t':'neg'); }
+      else{ const r=this.calc(this.cfg(m),custo,v,this._ov(sku,m)); cell.innerHTML=`<span style='font-size:9px;opacity:.6'>sim:</span> ${U.pct(r.margemPct)}`; cell.className='ptm '+(r.margemPct>=alvo?'pos':r.margemPct>=0?'warn-t':'neg'); }
+    }
+    // atualizar margem real
+    const rs=this._skuStat(sku,m);
+    const realWrap=inp.closest('td')&&inp.closest('td').querySelector('.ptm-real');
+    if(realWrap&&rs&&custo>0&&v>0){
+      const cfgReal=Object.assign({},this.cfg(m),{fee:rs.feePct,frete:rs.freteMed});
+      const rReal=this.calc(cfgReal,custo,v,this._ov(sku,m));
+      const mcReal=rReal.margemPct>=alvo?'pos':rReal.margemPct>=0?'warn-t':'neg';
+      realWrap.innerHTML=`<span style="color:var(--txt-3)">real:</span>
+        <span class="ptm ${mcReal}" style="font-size:11px;padding:1px 5px">${U.pct(rReal.margemPct)} <span style="font-size:9px;opacity:.7">●</span></span>
+        <span style="color:var(--txt-3);font-size:10px" title="${rs.n} venda(s) analisada(s)">taxa ${U.pct(rs.feePct)} · ${rs.n}v</span>`;
     }
     const ds=tb.querySelector(`[data-ds="${sku}|${m}"]`);
     if(ds){ const d=w[sku][m], sug=custo>0?this.priceForMargin(this.cfg(m),custo,this.target()):null;
