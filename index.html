@@ -4464,10 +4464,10 @@ const Pricing = {
         </label>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
           <label style="font-size:11px;color:var(--txt-3)">Taxa R$
-            <input class="pf-in bp-taxa" data-m="${m}" type="number" step="0.01" value="${taxaOv}" placeholder="${cfg.fee?U.round(cfg.fee,2):''}" style="margin-top:3px;display:block;width:100%">
+            <input class="pf-in bp-taxa" data-m="${m}" type="number" step="0.01" value="${taxaOv}" placeholder="${cfg.fee?cfg.fee.toFixed(2):''}" style="margin-top:3px;display:block;width:100%">
           </label>
           <label style="font-size:11px;color:var(--txt-3)">Frete R$
-            <input class="pf-in bp-frete" data-m="${m}" type="number" step="0.01" value="${freteOv}" placeholder="${cfg.frete?U.round(cfg.frete,2):''}" style="margin-top:3px;display:block;width:100%">
+            <input class="pf-in bp-frete" data-m="${m}" type="number" step="0.01" value="${freteOv}" placeholder="${cfg.frete?cfg.frete.toFixed(2):''}" style="margin-top:3px;display:block;width:100%">
           </label>
         </div>
         <div class="bp-result" data-m="${m}" style="font-size:13px;min-height:32px;padding:6px 8px;background:var(--panel-1);border-radius:6px;color:var(--txt-2)">—</div>
@@ -4504,7 +4504,7 @@ const Pricing = {
         if(frete>0) ov.frete=frete;
         const r=this.calc(cfgReal,custoMed,preco,ov);
         const mc=r.margemPct>=alvo?'var(--success)':r.margemPct>=0?'var(--warn)':'var(--danger)';
-        res.innerHTML=`Margem: <b style="color:${mc}">${U.pct(r.margemPct)}</b> · Lucro: R$ ${U.round(r.lucro,2)} · Repasse: R$ ${U.round(r.repasse,2)}`;
+        res.innerHTML=`Margem: <b style="color:${mc}">${U.pct(r.margemPct)}</b> · Repasse: ${U.brl(r.repasse)} · Taxa: ${U.brl(r.taxa)}`;
       });
     };
     document.querySelectorAll('.bp-preco,.bp-taxa,.bp-frete').forEach(i=>i.oninput=_recalc);
