@@ -4456,7 +4456,7 @@ const Pricing = {
       const precoOv=descOv!=null&&pvMed>0? +(pvMed*(1-descOv/100)).toFixed(2) : (pvMed||'');
       const b=MKT_BRAND[m]||{};
       return `<div class="bp-card" data-m="${m}" style="background:var(--panel-2);border:1px solid var(--border);border-radius:10px;padding:14px;flex:1;min-width:200px">
-        <div style="background:${b.cor||'#333'};color:#fff;border-radius:6px;padding:6px 10px;font-weight:700;font-size:13px;margin-bottom:12px;display:flex;align-items:center;gap:6px">
+        <div style="background:${b.bg||'#333'};color:${b.fg||'#fff'};border-radius:6px;padding:6px 10px;font-weight:700;font-size:13px;margin-bottom:12px;display:flex;align-items:center;gap:6px">
           <i class="fa-solid ${b.ic||''}"></i> ${m}
         </div>
         <label style="font-size:11px;color:var(--txt-3);display:block;margin-bottom:8px">Preço de venda (R$)
