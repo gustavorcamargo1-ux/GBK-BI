@@ -4127,16 +4127,6 @@ const Pricing = {
       if(ca) ca.indeterminate=checked.length>0&&checked.length<all.length, ca.checked=checked.length===all.length;
       _updateBulkBtn();
     });
-    const bulkBtn=document.getElementById('pricing-bulk-edit');
-    if(bulkBtn) bulkBtn.onclick=()=>{
-      const skus=[...tb.querySelectorAll('.pricing-row-chk:checked')].map(c=>c.dataset.sku);
-      if(skus.length) this._bulkEditModal(skus);
-    };
-    const bulkPriceBtn=document.getElementById('pricing-bulk-price');
-    if(bulkPriceBtn) bulkPriceBtn.onclick=()=>{
-      const skus=[...tb.querySelectorAll('.pricing-row-chk:checked')].map(c=>c.dataset.sku);
-      if(skus.length) this._bulkPriceModal(skus);
-    };
     this._renderPager(totalN,pages,pg);
     this._toggleBanner();
   },
@@ -4648,11 +4638,16 @@ const Pricing = {
     const err=document.getElementById('pf-err');
     const sku=(''+g('pf-sku')).trim(), produto=g('pf-prod').trim();
     if(!sku||!produto){ if(err){ err.textContent='Informe ao menos o SKU e o nome do produto.'; err.style.display='block'; } return; }
-    const ean=(''+g('pf-ean')).trim().replace(/\.0+$/,'').replace(/\s/g,'');
+    const ean=(''+g('pf-ean')).trim().replace(/\.0+$/, '').replace(/\D/g,'');
     const rec={ sku, produto, custo:U.parseNum(g('pf-custo')), precoVenda:U.parseNum(g('pf-pv')), categoria:g('pf-cat').trim(), marca:g('pf-marca').trim(), fornecedor:g('pf-forn').trim() };
     try{
       await DB.put('erp', rec);
-      if(ean){ const meta=Object.assign({},State.prodmeta||{}); meta[sku]=Object.assign({},meta[sku]||{},{ean}); State.prodmeta=meta; try{ await DB.put('config',{k:'prodmeta',data:meta}); }catch(_){} }
+      // EAN: salva se preenchido, limpa se deixado em branco
+      const meta=Object.assign({},State.prodmeta||{});
+      if(ean){ meta[sku]=Object.assign({},meta[sku]||{},{ean}); }
+      else if(meta[sku]){ delete meta[sku].ean; if(!Object.keys(meta[sku]).length) delete meta[sku]; }
+      State.prodmeta=meta;
+      try{ await DB.put('config',{k:'prodmeta',data:meta}); }catch(_){}
       const existed=(State.raw.erp||[]).some(e=>e.sku===sku);
       State.raw.erp=(State.raw.erp||[]).filter(e=>e.sku!==sku); State.raw.erp.push(rec);
       UI.toast('ok',existed?'Produto atualizado':'Produto cadastrado',`${sku} · ${produto}`);
@@ -8288,6 +8283,19 @@ const App = {
     const pTax=document.getElementById('pricing-tax'); if(pTax) pTax.oninput=()=>{Pricing.renderCards();Pricing.renderTable();};
     const pSave=document.getElementById('pricing-save'); if(pSave) pSave.onclick=()=>Pricing._saveWork();
     const pAdd=document.getElementById('pricing-add'); if(pAdd) pAdd.onclick=()=>Pricing._addModal();
+    // botões de ação em lote — vinculados aqui para não perder onclick a cada renderTable
+    const pBulkEdit=document.getElementById('pricing-bulk-edit');
+    if(pBulkEdit) pBulkEdit.onclick=()=>{
+      const tb=document.getElementById('pricing-table');
+      const skus=tb?[...tb.querySelectorAll('.pricing-row-chk:checked')].map(c=>c.dataset.sku):[];
+      if(skus.length) Pricing._bulkEditModal(skus);
+    };
+    const pBulkPrice=document.getElementById('pricing-bulk-price');
+    if(pBulkPrice) pBulkPrice.onclick=()=>{
+      const tb=document.getElementById('pricing-table');
+      const skus=tb?[...tb.querySelectorAll('.pricing-row-chk:checked')].map(c=>c.dataset.sku):[];
+      if(skus.length) Pricing._bulkPriceModal(skus);
+    };
     const ddS=document.getElementById('dedup-scan'); if(ddS) ddS.onclick=()=>Dedup.scan();
     const kR=document.getElementById('kit-run'); if(kR) kR.onclick=()=>Kits.gerar();
     document.addEventListener('click',e=>{ if(e.target&&e.target.id==='kit-undo-man'){ e.preventDefault(); Kits._limparManuais(); } });
