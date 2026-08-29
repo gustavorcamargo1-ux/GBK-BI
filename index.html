@@ -2227,8 +2227,14 @@ const PRESETS = {
       comissao:'Taxa de serviço líquida',
       frete:'Taxa de Envio Reversa'
     },
-    // estas taxas vêm por pedido (repetidas em cada linha) → ratear entre os itens
-    orderLevel:['taxa','comissao','frete'],
+    // cupom do vendedor + PIX são custos extras deduzidos da margem
+    // ajuste por participação em ação comercial é compensação da Shopee (reduz o custo)
+    composite:{
+      descontos:['Cupom do vendedor','Ajuste por pagamento via PIX'],
+      descontosOffset:['Ajuste por participação em ação comercial']
+    },
+    // estas taxas/descontos vêm por pedido → ratear entre os itens
+    orderLevel:['taxa','comissao','frete','descontos'],
     // não importar pedidos cancelados
     skipStatus:{ col:'Status do pedido', values:['Cancelado'] }
   },
@@ -2746,7 +2752,15 @@ const Importer = {
           if(composite){
             if(composite.taxa) rec.taxa=sumCols(r,composite.taxa);
             if(composite.ads) rec.adsDireto=sumCols(r,composite.ads);
-            for(const f in composite){ if(f!=='taxa'&&f!=='ads') rec[f]=sumCols(r,composite[f]); }
+            for(const f in composite){
+              if(f==='taxa'||f==='ads'||f==='descontosOffset') continue;
+              rec[f]=sumCols(r,composite[f]);
+            }
+            // descontosOffset: subtrai do desconto (ex.: compensação Shopee)
+            if(composite.descontos&&composite.descontosOffset){
+              const offset=sumCols(r,composite.descontosOffset);
+              rec.descontos=Math.max(0,rec.descontos-Math.abs(offset));
+            }
           }
           rec.situacao=Importer._situacao(rec.marketplace,r,_hidx);
           if(rec.situacao==='ok'&&rec.marketplace==='TikTok Shop'&&(rec.valorBruto*rec.qtd)<0) rec.situacao='devolvida';
