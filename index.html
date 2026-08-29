@@ -2235,8 +2235,8 @@ const PRESETS = {
     },
     // estas taxas/descontos vêm por pedido → ratear entre os itens
     orderLevel:['taxa','comissao','frete','descontos'],
-    // não importar pedidos cancelados
-    skipStatus:{ col:'Status do pedido', values:['Cancelado'] }
+    // não importar pedidos cancelados ou não pagos
+    skipStatus:{ col:'Status do pedido', values:['Cancelado','Não pago'] }
   },
   'magalu_vendas':{
     type:'vendas',
