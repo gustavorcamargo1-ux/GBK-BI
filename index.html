@@ -5470,15 +5470,15 @@ const Tarefas = {
     const el=document.getElementById('view-tarefas-body'); if(!el) return;
     this.updateBadge();
     const views=[
-      ['kanban','Kanban','fa-table-columns'],
+      ['kanban','Quadro','fa-table-columns'],
       ['calendar','Calendário','fa-calendar'],
-      ['eisenhower','Eisenhower','fa-border-all'],
-      ['rotina','Rotina','fa-rotate'],
-      ['smartsort','Smart Sort','fa-arrow-down-short-wide']
+      ['eisenhower','Matriz','fa-border-all'],
+      ['rotina','Rotina Diária','fa-rotate'],
+      ['smartsort','Prioridades','fa-arrow-down-short-wide']
     ];
-    const tabsHtml=views.map(([v,l,ic])=>`<button class="tf-view-btn${this._view===v?' active':''}" data-view="${v}"><i class="fa-solid ${ic}"></i> ${l}</button>`).join('');
+    const tabsHtml=views.map(([v,l,ic])=>`<button class="tf-view-btn${this._view===v?' active':''}" data-tfview="${v}"><i class="fa-solid ${ic}"></i> ${l}</button>`).join('');
     const f=this._filter, e=s=>this._esc(s);
-    const head=`<div class="panel"><div class="panel-head"><h3><i class="fa-solid fa-calendar-days"></i> Agenda</h3>
+    const head=`<div class="panel"><div class="panel-head"><h3><i class="fa-solid fa-calendar-days"></i> Tarefas & Agenda</h3>
       <div class="kb-head-btns"><button id="tarefa-plano" class="ghost-btn sm" title="Carregar plano 90 dias"><i class="fa-solid fa-wand-magic-sparkles"></i> Plano 90 dias</button> <button id="tarefa-add" class="primary-btn sm"><i class="fa-solid fa-plus"></i> Nova tarefa</button></div></div>
       <div class="tf-views">${tabsHtml}</div>
       <div class="pricing-toolbar" style="margin-top:8px"><input type="text" id="tarefa-q" class="pricing-search" placeholder="Buscar tarefa…" value="${e(f)}"></div></div>`;
@@ -5713,7 +5713,7 @@ const Tarefas = {
         <div class="ss-score">${sc}pts</div>
       </div>`;
     }).join('');
-    return `<div class="panel"><p class="muted" style="margin-bottom:12px"><i class="fa-solid fa-circle-info"></i> Ordenado por prioridade + prazo + status. Itens com maior pontuação exigem atenção imediata.</p></div><div class="ss-wrap"><div class="ss-list">${rows}</div></div>`;
+    return `<div class="panel"><p class="muted" style="margin-bottom:12px"><i class="fa-solid fa-circle-info"></i> Ordenado automaticamente por prioridade, prazo e status. Itens com maior pontuação exigem atenção imediata.</p></div><div class="ss-wrap"><div class="ss-list">${rows}</div></div>`;
   },
 
   /* ========== WIRE EVENTS ========== */
@@ -5721,7 +5721,7 @@ const Tarefas = {
     const add=el.querySelector('#tarefa-add'); if(add) add.onclick=()=>this._editModal(null);
     const pl=el.querySelector('#tarefa-plano'); if(pl) pl.onclick=()=>this.seedPlano();
     const q=el.querySelector('#tarefa-q'); if(q) q.oninput=()=>{ this._filter=q.value; this.render(); const n=document.getElementById('tarefa-q'); if(n){n.focus();n.setSelectionRange(n.value.length,n.value.length);} };
-    el.querySelectorAll('.tf-view-btn').forEach(b=>b.onclick=()=>{ this._view=b.dataset.view; this.render(); });
+    el.querySelectorAll('.tf-view-btn').forEach(b=>b.onclick=()=>{ this._view=b.dataset.tfview; this.render(); });
   },
   _wireKanban(el){
     const ord=el.querySelector('#tarefa-ordem'); if(ord) ord.onclick=()=>this._ordemAuto();
