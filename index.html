@@ -645,10 +645,11 @@ body.role-viewer .pricing-edit{display:none}
 
 /* ===== Tarefas: Agenda Profissional ===== */
 /* --- Views switch --- */
-.tf-views{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
-.tf-view-btn{padding:5px 13px;border-radius:8px;border:1px solid var(--line);background:transparent;color:var(--txt-2);font-size:12.5px;font-weight:600;cursor:pointer;transition:.15s}
+.tf-views{display:flex;gap:6px;align-items:center;overflow-x:auto;padding-bottom:2px;scrollbar-width:none}
+.tf-views::-webkit-scrollbar{display:none}
+.tf-view-btn{padding:5px 12px;border-radius:8px;border:1px solid var(--line);background:transparent;color:var(--txt-2);font-size:12px;font-weight:600;cursor:pointer;transition:.15s;white-space:nowrap;flex-shrink:0}
 .tf-view-btn:hover{border-color:var(--brand);color:var(--txt)}
-.tf-view-btn.active{background:var(--brand);border-color:var(--brand);color:#fff}
+.tf-view-btn.active{background:var(--brand)!important;border-color:var(--brand)!important;color:#fff!important;display:inline-flex!important;visibility:visible!important;opacity:1!important}
 /* --- Kanban board --- */
 .kb-board{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:4px}
 .kb-col{background:var(--panel-2);border:1px solid var(--line);border-radius:14px;padding:12px;min-height:120px}
@@ -5452,7 +5453,8 @@ const ROT_DEFAULT = [
 
 const Tarefas = {
   _filter:'',
-  _view: 'kanban', /* kanban | calendar | eisenhower | rotina | smartsort */
+  get _view(){ try{return localStorage.getItem('gbk-tf-view')||'kanban';}catch(_){return 'kanban';} },
+  set _view(v){ try{localStorage.setItem('gbk-tf-view',v);}catch(_){} },
   _calYear: new Date().getFullYear(),
   _calMonth: new Date().getMonth(),
   list(){ return State.tarefas||[]; },
