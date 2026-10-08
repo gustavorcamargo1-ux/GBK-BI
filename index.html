@@ -5823,8 +5823,7 @@ const Tarefas = {
       c.onclick=(e)=>{
         if(e.target.closest('.eisen-cb')) return;
         const id=c.dataset.eid;
-        const t=this.list().find(x=>x.id===id);
-        if(t) this._editModal(t);
+        this._editModal(id);
       };
     });
     // Botões bulk
