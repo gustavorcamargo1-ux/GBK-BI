@@ -5457,7 +5457,7 @@ const Tarefas = {
   _calYear: new Date().getFullYear(),
   _calMonth: new Date().getMonth(),
   list(){ return State.tarefas||[]; },
-  _save(){ return DB.put('config',{k:'tarefas',data:State.tarefas||[]}); },
+  _save(){ (State.tarefas||[]).forEach(t=>{ delete t.ord; }); return DB.put('config',{k:'tarefas',data:State.tarefas||[]}); },
   _saveRot(){ return DB.put('config',{k:'rotina',data:State.rotina||[]}); },
   _saveRotCheck(){ return DB.put('config',{k:'rotina_check',data:State.rotina_check||{}}); },
   _addDays(n){ const d=new Date(); d.setDate(d.getDate()+n); return d.toISOString().slice(0,10); },
@@ -5544,13 +5544,13 @@ const Tarefas = {
   /* ========== VIEW: KANBAN ========== */
   _sortItems(items){
     const PR={alta:0,media:1,baixa:2};
-    const manual=items.some(t=>t.ord!=null);
-    return items.sort((a,b)=>{
-      if(manual){ const oa=(a.ord!=null?a.ord:9e9), ob=(b.ord!=null?b.ord:9e9); if(oa!==ob) return oa-ob; }
+    return [...items].sort((a,b)=>{
+      /* 1º prazo: sem prazo vai para o final */
+      const pa=a.prazo||'9999-99-99', pb=b.prazo||'9999-99-99';
+      if(pa!==pb) return pa<pb?-1:1;
+      /* 2º prioridade */
       const da=(PR[a.prioridade]!=null?PR[a.prioridade]:1), db=(PR[b.prioridade]!=null?PR[b.prioridade]:1);
-      if(da!==db) return da-db;
-      const pa=a.prazo||'9999-99', pb=b.prazo||'9999-99';
-      return pa<pb?-1:pa>pb?1:0;
+      return da-db;
     });
   },
   _filterList(){ const f=this._filter.toLowerCase(); if(!f) return this.list(); return this.list().filter(t=>(t.titulo+' '+(t.categoria||'')+' '+(t.sku||'')).toLowerCase().includes(f)); },
