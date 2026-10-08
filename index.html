@@ -5453,8 +5453,7 @@ const ROT_DEFAULT = [
 
 const Tarefas = {
   _filter:'',
-  get _view(){ try{return localStorage.getItem('gbk-tf-view')||'kanban';}catch(_){return 'kanban';} },
-  set _view(v){ try{localStorage.setItem('gbk-tf-view',v);}catch(_){} },
+  _view:'kanban',
   _calYear: new Date().getFullYear(),
   _calMonth: new Date().getMonth(),
   list(){ return State.tarefas||[]; },
@@ -5510,6 +5509,15 @@ const Tarefas = {
     else if(this._view==='rotina') this._wireRotina(el);
     else if(this._view==='eisenhower') this._wireEisenhower(el);
     else if(this._view==='smartsort') this._wireClickCards(el);
+    /* Force active tab highlight after DOM is written */
+    const _v=Tarefas._view;
+    el.querySelectorAll('.tf-view-btn').forEach(btn=>{
+      const oc=btn.getAttribute('onclick')||'';
+      const isA=oc.indexOf("'"+_v+"'")!==-1;
+      btn.style.setProperty('background',isA?'#F26522':'transparent','important');
+      btn.style.setProperty('border-color',isA?'#F26522':'var(--line)','important');
+      btn.style.setProperty('color',isA?'#ffffff':'var(--txt-2)','important');
+    });
   },
 
   /* ---- stats bar ---- */
@@ -5750,7 +5758,7 @@ const Tarefas = {
     return `<div class="panel"><p class="muted" style="margin-bottom:12px"><i class="fa-solid fa-circle-info"></i> Ordenado automaticamente por prioridade, prazo e status. Itens com maior pontuação exigem atenção imediata.</p></div><div class="ss-wrap"><div class="ss-list">${rows}</div></div>`;
   },
 
-  _setView(v){ this._view=v; this.render(); },
+  _setView(v){ Tarefas._view=v; Tarefas.render(); },
 
   /* ========== WIRE EVENTS ========== */
   _wireHead(el){
