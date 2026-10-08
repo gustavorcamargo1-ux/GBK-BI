@@ -5633,7 +5633,7 @@ const Tarefas = {
   },
   _eisenSel: new Set(),
   _renderEisenhower(){
-    const open=this.list().filter(t=>t.status!=='done');
+    const open=this._sortItems(this.list().filter(t=>t.status!=='done'));
     const qs={q1:[],q2:[],q3:[],q4:[]};
     open.forEach(t=>qs[this._eisenQuadrant(t)].push(t));
     const sel=this._eisenSel;
