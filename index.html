@@ -5810,13 +5810,21 @@ const Tarefas = {
     el.querySelectorAll('[data-id]').forEach(c=>c.onclick=()=>this._editModal(c.dataset.id));
   },
   _wireEisenhower(el){
-    // Toggle seleção ao clicar
+    // Checkbox = seleciona; resto do card = abre tarefa
     el.querySelectorAll('.eisen-item[data-eid]').forEach(c=>{
-      c.onclick=()=>{
+      const cb=c.querySelector('.eisen-cb');
+      if(cb) cb.onclick=(e)=>{
+        e.stopPropagation();
         const id=c.dataset.eid;
         if(this._eisenSel.has(id)) this._eisenSel.delete(id);
         else this._eisenSel.add(id);
         this.render();
+      };
+      c.onclick=(e)=>{
+        if(e.target.closest('.eisen-cb')) return;
+        const id=c.dataset.eid;
+        const t=this.list().find(x=>x.id===id);
+        if(t) this._editModal(t);
       };
     });
     // Botões bulk
