@@ -5487,7 +5487,11 @@ const Tarefas = {
       ['rotina','Rotina Diária','fa-rotate'],
       ['smartsort','Prioridades','fa-arrow-down-short-wide']
     ];
-    const tabsHtml=views.map(([v,l,ic])=>`<button class="tf-view-btn${this._view===v?' active':''}" onclick="Tarefas._setView('${v}')"><i class="fa-solid ${ic}"></i> ${l}</button>`).join('');
+    const tabsHtml=views.map(([v,l,ic])=>{
+      const isActive=this._view===v;
+      const style=isActive?` style="background:#F26522;border-color:#F26522;color:#fff"`:` style="background:transparent;color:var(--txt-2)"`;
+      return `<button class="tf-view-btn${isActive?' active':''}"${style} onclick="Tarefas._setView('${v}')"><i class="fa-solid ${ic}"></i> ${l}</button>`;
+    }).join('');
     const f=this._filter, e=s=>this._esc(s);
     const head=`<div class="panel"><div class="panel-head"><h3><i class="fa-solid fa-calendar-days"></i> Tarefas & Agenda</h3>
       <div class="kb-head-btns"><button id="tarefa-add" class="primary-btn sm"><i class="fa-solid fa-plus"></i> Nova tarefa</button></div></div>
