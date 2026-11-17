@@ -2815,7 +2815,7 @@ const Importer = {
               marketplace:'Mercado Livre', loja:loja||'Principal',
               sku: skuRaw, produto: prodRaw,
               data: dataIso||null,
-              qtd:1,
+              qtd:1, fonteMP:true,
               valorBruto:0, taxa:0, comissao:0,
               frete:0, freteSub:0, descontos:0,
               liquido:0,
@@ -2846,17 +2846,7 @@ const Importer = {
           const e = erpForQtd[v.sku];
           if(e && e.precoVenda>0 && v.valorBruto>0){
             const qtdCalc = Math.round(v.valorBruto / e.precoVenda);
-            if(qtdCalc>1){
-              // Todos os valores do MP são totais do pedido.
-              // Compute.run faz receitaBruta = valorBruto * qtd → normaliza para unitário.
-              v.qtd        = qtdCalc;
-              v.valorBruto = v.valorBruto / qtdCalc;
-              v.taxa       = v.taxa       / qtdCalc;
-              v.comissao   = v.comissao   / qtdCalc;
-              v.frete      = v.frete      / qtdCalc;
-              v.descontos  = v.descontos  / qtdCalc;
-              v.liquido    = v.liquido    / qtdCalc;
-            }
+            if(qtdCalc>=1) v.qtd = qtdCalc;
           }
           return v;
         });
@@ -2982,7 +2972,8 @@ const Compute = {
 
     State.enriched=State.raw.vendas.filter(v=>!v.situacao||v.situacao==='ok').map(v=>{
       const e=erpMap[v.sku];
-      const receitaBruta=v.valorBruto*v.qtd;
+      // Para MP Cobranças o valorBruto já é o total do pedido; para outros é unitário × qtd
+      const receitaBruta = v.fonteMP ? v.valorBruto : v.valorBruto*v.qtd;
       // receita líquida: vem direto da venda (MP Cobranças) ou calculada pelos componentes
       // liquidoManual: correção manual do usuário tem prioridade absoluta
       const liqEfetivo = v.liquidoManual!=null ? v.liquidoManual : v.liquido;
@@ -3479,9 +3470,14 @@ const VendasView = {
     // Busca a venda no banco e salva liquidoManual
     const all = await DB.getAll('vendas');
     const v = all.find(x=>(x.chave||x.pedido)===chave);
-    if(!v){ alert('Venda não encontrada'); return; }
+    if(!v){ alert(`Venda não encontrada\nChave buscada: ${chave}\nTotal registros: ${all.length}`); return; }
     v.liquidoManual = novo;
-    await DB.put('vendas', v);
+    try{
+      await DB.put('vendas', v);
+    } catch(err){
+      alert(`Erro ao salvar: ${err?.message||err}`);
+      return;
+    }
     UI.toast('ok','Líquido salvo','Valor corrigido com sucesso');
     State.raw.vendas = await DB.getAll('vendas');
     await Compute.run();
