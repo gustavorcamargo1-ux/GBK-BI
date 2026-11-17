@@ -2821,7 +2821,8 @@ const Importer = {
             };
           }
           const v=mpMap[pedido];
-          v.valorBruto  += bruto;
+          // valorBruto = valor do produto (somente da 1ª linha com bruto>0; linhas de frete/taxa não somam)
+          if(v.valorBruto===0 && bruto>0) v.valorBruto = bruto;
           v.taxa        += tarifaMp;
           v.comissao    += tarifaPlat;
           v.frete       += frete;
@@ -2974,8 +2975,16 @@ const Compute = {
       if(taxOrder[v.pedido]!=null){ const tot=grossOrder[v.pedido]||1; imposto=taxOrder[v.pedido]*(receitaBruta/tot); }
       else if(!isentas.has(v.loja||'Principal')){
         const mes=(v.data||'').slice(0,7);
-        // fallback: se data ausente, usa a alíquota mais recente disponível
-        const aliq=rates[mes]||(mes?0:(()=>{const ks=Object.keys(rates).sort();return ks.length?rates[ks[ks.length-1]]:0;})());
+        // usa alíquota exata do mês ou, se não cadastrada, o mês anterior mais próximo
+        const _rateFor=(m)=>{
+          if(rates[m]!=null) return rates[m];
+          const ks=Object.keys(rates).sort();
+          if(!ks.length) return 0;
+          // pega o maior mês cadastrado que seja <= m (ou o menor se m for antes de tudo)
+          const before=ks.filter(k=>k<=m);
+          return before.length ? rates[before[before.length-1]] : rates[ks[0]];
+        };
+        const aliq=mes?_rateFor(mes):(()=>{const ks=Object.keys(rates).sort();return ks.length?rates[ks[ks.length-1]]:0;})();
         imposto=receitaBruta*aliq/100;
       }
 
