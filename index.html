@@ -3970,35 +3970,10 @@ const UI = {
     this._initNavReorder();
   },
   _initNavReorder(){
-    const nav=document.getElementById('nav'); if(!nav||nav.dataset.grouped) return; nav.dataset.grouped='1';
-    setTimeout(()=>{ if(nav) nav.style.opacity='1'; },0);
-    const GROUPS=[
-      ['Visão',['dashboard','dre','marketplaces','vendas','tabela','rankings','alertas']],
-      ['Anúncios & Vendas',['mads','devol']],
-      ['Produtos',['precificacao','viab']],
-      ['Operação',['caixa','tarefas','plano']],
-      ['Sistema',['dados','config']]
-    ];
+    // Grupos já estão no HTML estático — apenas aplica cores nos ícones
+    const nav=document.getElementById('nav'); if(!nav) return;
     const COLORS={dashboard:'#3B82F6',dre:'#6366F1',marketplaces:'#0EA5E9',vendas:'#06B6D4',rankings:'#8B5CF6',tabela:'#94A3B8',alertas:'#EF4444',mads:'#F26522',devol:'#EC4899',precificacao:'#10B981',viab:'#14B8A6',caixa:'#F59E0B',tarefas:'#A855F7',plano:'#22C55E',dados:'#64748B',config:'#6B7280'};
     Object.keys(COLORS).forEach(v=>{ const ic=nav.querySelector('.nav-item[data-view="'+v+'"] i'); if(ic) ic.style.color=COLORS[v]; });
-    const save=(g,box)=>{ try{ localStorage.setItem('gbk-nav-g-'+g,JSON.stringify([...box.querySelectorAll('.nav-item')].map(b=>b.dataset.view))); }catch(_){} };
-    const after=(box,y)=>{ const els=[...box.querySelectorAll('.nav-item:not(.nav-dragging)')]; let best=null,bo=-Infinity; els.forEach(c=>{ const b=c.getBoundingClientRect(); const off=y-b.top-b.height/2; if(off<0&&off>bo){ bo=off; best=c; } }); return best; };
-    GROUPS.forEach(gr=>{
-      const title=gr[0], views=gr[1];
-      const sec=document.createElement('div'); sec.className='nav-group';
-      const h=document.createElement('div'); h.className='nav-group-title'; h.textContent=title; sec.appendChild(h);
-      const box=document.createElement('div'); box.className='nav-group-items'; sec.appendChild(box);
-      let order=views.slice();
-      try{ const sv=JSON.parse(localStorage.getItem('gbk-nav-g-'+title)||'null'); if(Array.isArray(sv)&&sv.length){ order=sv.filter(v=>views.includes(v)); views.forEach(v=>{ if(order.indexOf(v)<0) order.push(v); }); } }catch(_){}
-      order.forEach(v=>{ const it=nav.querySelector('.nav-item[data-view="'+v+'"]'); if(it) box.appendChild(it); });
-      box.querySelectorAll('.nav-item').forEach(it=>{
-        it.setAttribute('draggable','true');
-        it.addEventListener('dragstart',e=>{ it.classList.add('nav-dragging'); e.dataTransfer.effectAllowed='move'; try{ e.dataTransfer.setData('text/plain',it.dataset.view||''); }catch(_){} });
-        it.addEventListener('dragend',()=>{ it.classList.remove('nav-dragging'); save(title,box); });
-      });
-      box.addEventListener('dragover',e=>{ e.preventDefault(); const d=box.querySelector('.nav-dragging'); if(!d) return; const aft=after(box,e.clientY); if(aft==null) box.appendChild(d); else box.insertBefore(d,aft); });
-      nav.appendChild(sec);
-    });
   },
   go(view){
     const _sb=document.querySelector('.sidebar'); if(_sb) _sb.classList.remove('open');
