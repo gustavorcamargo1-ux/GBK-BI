@@ -1893,10 +1893,10 @@ const Cloud = {
 
 // mapeamento de nomes de campo: app (camelCase) <-> banco (snake_case)
 const COL_MAP = {
-  vendas:{ importId:'import_id', valorBruto:'valor_bruto', freteSub:'frete_sub', adsDireto:'ads_direto', liquidoManual:'liquido_manual' },
+  vendas:{ importId:'import_id', valorBruto:'valor_bruto', freteSub:'frete_sub', adsDireto:'ads_direto', liquidoManual:'liquido_manual', fonteMP:'fonte_mp' },
   erp:{ precoVenda:'preco_venda' }
 };
-const SKIP_COLS = new Set(['id','updated_at','fonteMP','fonte_mp','revisar']); // colunas apenas locais, nunca enviar ao banco
+const SKIP_COLS = new Set(['id','updated_at','revisar']); // colunas apenas locais, nunca enviar ao banco
 function toDB(store,o){
   const m=COL_MAP[store]||{}, out={};
   const DATE_COLS=new Set(['data','data_venda','date','created_at']);
@@ -2819,6 +2819,7 @@ const Importer = {
               valorBruto:0, taxa:0, comissao:0,
               frete:0, freteSub:0, descontos:0,
               liquido:0,
+              fonteMP:true,
               situacao:'ok'
             };
           }
@@ -2840,6 +2841,21 @@ const Importer = {
           if(!v.data && dataIso)   v.data    = dataIso;
         });
         records = Object.values(mpMap);
+        // Calcular qtd a partir do precoVenda ERP com faixa ±30%
+        const erpSnap = await DB.getAll('erp');
+        const erpSnapMap = {}; erpSnap.forEach(e=>{ if(e.sku) erpSnapMap[e.sku]=e; });
+        records.forEach(v=>{
+          const e = erpSnapMap[v.sku];
+          if(e && e.precoVenda > 0 && v.valorBruto > 0){
+            const qtdCalc = v.valorBruto / e.precoVenda;
+            const qtdArred = Math.round(qtdCalc);
+            if(qtdArred >= 1){
+              const precoImplicito = v.valorBruto / qtdArred;
+              const diff = Math.abs(precoImplicito - e.precoVenda) / e.precoVenda;
+              if(diff <= 0.30) v.qtd = qtdArred;
+            }
+          }
+        });
         // Salva também em State.raw.mp para retrocompatibilidade do cruzamento
         State.raw.mp = records.map(v=>({pedido:v.pedido, liquido_mp:v.liquido, bruto_mp:v.valorBruto}));
         await DB.put('config',{k:'mp_cobrancas',data:State.raw.mp});
@@ -2962,7 +2978,8 @@ const Compute = {
 
     State.enriched=State.raw.vendas.filter(v=>!v.situacao||v.situacao==='ok').map(v=>{
       const e=erpMap[v.sku];
-      const receitaBruta = v.valorBruto*v.qtd;
+      // MP Cobranças: valorBruto já é o total do pedido (qtd já calculada no import)
+      const receitaBruta = v.fonteMP ? v.valorBruto : v.valorBruto*v.qtd;
       // receita líquida: vem direto da venda (MP Cobranças) ou calculada pelos componentes
       // liquidoManual: correção manual do usuário tem prioridade absoluta
       const liqEfetivo = v.liquidoManual!=null ? v.liquidoManual : v.liquido;
@@ -2977,16 +2994,7 @@ const Compute = {
       const frete = liqEfetivo>0 ? 0 : (Math.abs(v.frete)-Math.abs(v.freteSub));
       const desc  = liqEfetivo>0 ? 0 : Math.abs(v.descontos);
       const outras = 0;
-      const qtdEfetiva = (() => {
-        if (!e || e.precoVenda <= 0) return v.qtd;
-        const qtdCalc = v.valorBruto / e.precoVenda;
-        const qtdArred = Math.round(qtdCalc);
-        if (qtdArred < 1) return v.qtd;
-        const precoImplicito = v.valorBruto / qtdArred;
-        const diff = Math.abs(precoImplicito - e.precoVenda) / e.precoVenda;
-        return diff <= 0.20 ? qtdArred : v.qtd;
-      })();
-      const custoERP = e ? e.custo*qtdEfetiva : 0;
+      const custoERP = e ? e.custo*v.qtd : 0;
 
       // ADS: zero para vendas com líquido real (MP Cobranças — ads já embutido nas deduções)
       let ads=0;
