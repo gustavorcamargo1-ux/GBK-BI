@@ -2952,15 +2952,18 @@ const Compute = {
     State.enriched=State.raw.vendas.filter(v=>!v.situacao||v.situacao==='ok').map(v=>{
       const e=erpMap[v.sku];
       const receitaBruta=v.valorBruto*v.qtd;
-      // tarifas/descontos podem vir negativos — usamos magnitude
-      const taxas=Math.abs(v.taxa)+Math.abs(v.comissao);
-      // frete LÍQUIDO = tarifa de envio − receita por envio (desconto de frete do ML)
-      const frete=Math.abs(v.frete)-Math.abs(v.freteSub);
-      const desc=Math.abs(v.descontos);
-      // receita líquida: vem direto da venda (MP Cobranças, Shopee, etc.) ou calculada pelos componentes
-      const receitaLiquida = v.liquido>0 ? v.liquido : (receitaBruta - taxas - frete - desc);
-      // resíduo: deduções não detalhadas (IR, custo financeiro etc.) — zero quando líquido vem do arquivo
-      const outras = v.liquido>0 ? 0 : (receitaBruta - taxas - frete - desc - receitaLiquida);
+      // receita líquida: vem direto da venda (MP Cobranças) ou calculada pelos componentes
+      const receitaLiquida = v.liquido>0 ? v.liquido : (()=>{
+        const tx=Math.abs(v.taxa)+Math.abs(v.comissao);
+        const ft=Math.abs(v.frete)-Math.abs(v.freteSub);
+        const dc=Math.abs(v.descontos);
+        return receitaBruta - tx - ft - dc;
+      })();
+      // taxas para exibição: quando liquido real disponível, dedução total = bruto - liquido
+      const taxas = v.liquido>0 ? Math.max(0, receitaBruta - v.liquido) : (Math.abs(v.taxa)+Math.abs(v.comissao));
+      const frete = v.liquido>0 ? 0 : (Math.abs(v.frete)-Math.abs(v.freteSub));
+      const desc  = v.liquido>0 ? 0 : Math.abs(v.descontos);
+      const outras = 0;
       const custoERP = e ? e.custo*v.qtd : 0;
 
       // ADS: zero para vendas com líquido real (MP Cobranças — ads já embutido nas deduções)
