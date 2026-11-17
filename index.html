@@ -1896,7 +1896,7 @@ const COL_MAP = {
   vendas:{ importId:'import_id', valorBruto:'valor_bruto', freteSub:'frete_sub', adsDireto:'ads_direto', liquidoManual:'liquido_manual' },
   erp:{ precoVenda:'preco_venda' }
 };
-const SKIP_COLS = new Set(['id','updated_at','fonteMP','fonte_mp','revisar','qtdReal','qtd_real']); // colunas apenas locais, nunca enviar ao banco
+const SKIP_COLS = new Set(['id','updated_at','fonteMP','fonte_mp','revisar']); // colunas apenas locais, nunca enviar ao banco
 function toDB(store,o){
   const m=COL_MAP[store]||{}, out={};
   const DATE_COLS=new Set(['data','data_venda','date','created_at']);
@@ -2839,22 +2839,7 @@ const Importer = {
           if(!v.produto && prodRaw) v.produto = prodRaw;
           if(!v.data && dataIso)   v.data    = dataIso;
         });
-        // Inferir qtdReal (quantidade física) só para multiplicar o custo.
-        // valorBruto/taxas/liquido já são totais do pedido → qtd fica sempre 1 para não duplicar.
-        const erpForQtd = {};
-        (State.raw.erp||[]).forEach(e=>{ if(e.sku) erpForQtd[e.sku]=e; });
-        records = Object.values(mpMap).map(v=>{
-          const e = erpForQtd[v.sku];
-          if(e && e.precoVenda>0 && v.valorBruto>0){
-            const qtdCalc = Math.round(v.valorBruto / e.precoVenda);
-            if(qtdCalc>=2){
-              const esperado = e.precoVenda * qtdCalc;
-              const diff = Math.abs(v.valorBruto - esperado) / esperado;
-              if(diff <= 0.10) v.qtdReal = qtdCalc; // só para o custo
-            }
-          }
-          return v;
-        });
+        records = Object.values(mpMap);
         // Salva também em State.raw.mp para retrocompatibilidade do cruzamento
         State.raw.mp = records.map(v=>({pedido:v.pedido, liquido_mp:v.liquido, bruto_mp:v.valorBruto}));
         await DB.put('config',{k:'mp_cobrancas',data:State.raw.mp});
@@ -2992,8 +2977,16 @@ const Compute = {
       const frete = liqEfetivo>0 ? 0 : (Math.abs(v.frete)-Math.abs(v.freteSub));
       const desc  = liqEfetivo>0 ? 0 : Math.abs(v.descontos);
       const outras = 0;
-      const qtdParaCusto = v.qtdReal || v.qtd;
-      const custoERP = e ? e.custo*qtdParaCusto : 0;
+      const qtdEfetiva = (() => {
+        if (!e || e.precoVenda <= 0) return v.qtd;
+        const qtdCalc = v.valorBruto / e.precoVenda;
+        const qtdArred = Math.round(qtdCalc);
+        if (qtdArred < 1) return v.qtd;
+        const precoImplicito = v.valorBruto / qtdArred;
+        const diff = Math.abs(precoImplicito - e.precoVenda) / e.precoVenda;
+        return diff <= 0.20 ? qtdArred : v.qtd;
+      })();
+      const custoERP = e ? e.custo*qtdEfetiva : 0;
 
       // ADS: zero para vendas com líquido real (MP Cobranças — ads já embutido nas deduções)
       let ads=0;
@@ -3593,7 +3586,7 @@ const VendasView = {
         <td>${U.mktBadge(r.marketplace,r.loja)}</td>
         <td class="mono" style="font-size:0.78em;white-space:nowrap">${r.sku||'—'}</td>
         <td style="max-width:200px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${(r.produto||'').replace(/"/g,'&quot;')}">${r.produto||r.sku||'—'}</td>
-        <td class="num">${r.qtdReal||r.qtd||1}</td>
+        <td class="num">${r.qtd||1}</td>
         <td class="num">${U.brl(r.receitaBruta||0)}</td>
         <td class="num">${U.brl(taxas)}</td>
         <td class="num">${liqCell}</td>
