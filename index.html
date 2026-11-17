@@ -3468,10 +3468,11 @@ const VendasView = {
     if(isNaN(novo)||novo<0){ alert('Valor inválido'); return; }
     // Busca a venda no banco e salva liquidoManual
     const all = await DB.getAll('vendas');
-    const v = all.find(x=>(x.chaveVenda||x.pedido)===chave);
+    const v = all.find(x=>(x.chave||x.pedido)===chave);
     if(!v){ alert('Venda não encontrada'); return; }
     v.liquidoManual = novo;
     await DB.put('vendas', v);
+    UI.toast('ok','Líquido salvo','Valor corrigido com sucesso');
     State.raw.vendas = await DB.getAll('vendas');
     await Compute.run();
     this.render();
@@ -3570,7 +3571,7 @@ const VendasView = {
       const mg = r.receitaBruta ? lucro/r.receitaBruta*100 : 0;
       const lCls = lucro<0?'loss':lucro>0?'gain':'';
       const mCls = mg<0?'loss':mg>=15?'gain':'warn';
-      const pedidoKey = r.chaveVenda||r.pedido||'';
+      const pedidoKey = r.chave||r.pedido||'';
       const liqCell = r.revisar
         ? `<span style="color:#f59e0b;cursor:pointer;font-size:0.85em;margin-right:3px" title="Valor pode estar incorreto — clique para corrigir" onclick="VendasView._editLiquido('${pedidoKey}',${liq})">⚠</span>${U.brl(liq)}`
         : r.liquidoManual!=null
