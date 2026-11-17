@@ -987,7 +987,7 @@ textarea#tf-desc{min-height:170px !important;height:170px;max-height:50vh;resize
       <button class="nav-item active" data-view="dashboard"><i class="fa-solid fa-gauge-high"></i><span>Dashboard</span></button>
       <button class="nav-item" data-view="dre"><i class="fa-solid fa-file-invoice-dollar"></i><span>DRE Gerencial</span></button>
       <button class="nav-item" data-view="marketplaces"><i class="fa-solid fa-store"></i><span>Marketplaces</span></button>
-      <button class="nav-item" data-view="vendas"><i class="fa-solid fa-receipt"></i><span>Vendas</span></button>
+      <button class="nav-item" data-view="vendas"><i class="fa-solid fa-receipt"></i><span>Vendas Detalhadas</span></button>
       <button class="nav-item" data-view="tabela"><i class="fa-solid fa-table-list"></i><span>Vendas (backup)</span></button>
       <button class="nav-item" data-view="rankings"><i class="fa-solid fa-ranking-star"></i><span>Rankings</span></button>
       <button class="nav-item needs-owner" data-view="precificacao"><i class="fa-solid fa-box-open"></i><span>Produtos</span></button>
@@ -1027,7 +1027,8 @@ textarea#tf-desc{min-height:170px !important;height:170px;max-height:50vh;resize
         <div class="dropdown">
           <button class="primary-btn"><i class="fa-solid fa-file-import"></i> Importar <i class="fa-solid fa-chevron-down tiny"></i></button>
           <div class="dropdown-menu">
-            <button data-import="vendas"><i class="fa-solid fa-cart-shopping"></i> Importar Vendas</button>
+            <button data-import="mp"><i class="fa-solid fa-money-bill-transfer"></i> Vendas ML (MP Cobranças)</button>
+            <button data-import="vendas"><i class="fa-solid fa-cart-shopping"></i> Vendas outros (Shopee, TikTok…)</button>
             <button data-import="erp"><i class="fa-solid fa-boxes-stacked"></i> Importar Produtos e Custos</button>
             <button data-import="kits"><i class="fa-solid fa-boxes-packing"></i> Importar Kits</button>
             <button data-import="ads"><i class="fa-solid fa-bullhorn"></i> Importar Ads (Mercado Ads)</button>
@@ -2082,7 +2083,7 @@ const SCHEMAS = {
     {f:'valor',       label:'Valor do imposto',syn:['valor','valorimposto','imposto','tributo','difal','icms','tax']}
   ]
 };
-const IMPORT_TITLES = { vendas:'Importar Vendas', erp:'Importar Produtos e Custos', ads:'Importar Custos de ADS', impostos:'Importar Impostos', kits:'Importar Kits', mp:'Importar MP Cobranças' };
+const IMPORT_TITLES = { vendas:'Importar Vendas', erp:'Importar Produtos e Custos', ads:'Importar Custos de ADS', impostos:'Importar Impostos', kits:'Importar Kits', mp:'Importar Vendas ML (MP Cobranças)' };
 const KIT_EMBALAGEM = ['caixa','embalagem','sacola','papel bolha','plastico','plástico','brinde','etiqueta','fita','encarte'];
 const ehEmbalagem = nome => { const n=(nome||'').toLowerCase(); return KIT_EMBALAGEM.some(w=>n.includes(w)); };
 
@@ -2093,14 +2094,16 @@ const PRESETS = {
     type:'mp',
     signature:['Número da venda no Mercado Livre (order_id)','Valor total recebido (net_received_amount)'],
     map:{
-      pedido:'Número da venda no Mercado Livre (order_id)',
-      data:'Data da compra (date_created)',
-      status:'Status da operação (status)',
-      bruto:'Valor do produto (transaction_amount)',
+      pedido:   'Número da venda no Mercado Livre (order_id)',
+      data:     'Data da compra (date_created)',
+      status:   'Status da operação (status)',
+      sku:      'Código de referência do produto (seller_custom_field)',
+      produto:  'Descrição do produto (reason)',
+      bruto:    'Valor do produto (transaction_amount)',
       tarifa_mp:'Tarifa do Mercado Pago (mercadopago_fee)',
       tarifa_plat:'Tarifa pelo uso da plataforma de terceiros (marketplace_fee)',
-      frete:'Frete (shipping_cost)',
-      desconto:'Desconto para a sua contraparte (coupon_fee)',
+      frete:    'Frete (shipping_cost)',
+      desconto: 'Desconto para a sua contraparte (coupon_fee)',
       liquido_mp:'Valor total recebido (net_received_amount)'
     }
   },
@@ -2768,22 +2771,55 @@ const Importer = {
         await DB.bulk('ads',records);
       }
       else if(type==='mp'){
-        // Relatório do Mercado Pago: só approved, agrega por order_id (pode ter múltiplos pagamentos/parcelas)
+        // Relatório do Mercado Pago Cobranças → venda completa do ML
+        // Agrega por order_id (1 pedido pode ter múltiplas linhas: parcelas, estornos parciais etc.)
         const mpMap={};
         data.forEach(r=>{
           const pedido=(''+get(r,'pedido')).trim();
           const status=(''+get(r,'status')).trim().toLowerCase();
           if(!pedido||status!=='approved') return;
-          const liq=U.parseNum(get(r,'liquido_mp'));
-          const bruto=U.parseNum(get(r,'bruto'));
-          if(!mpMap[pedido]) mpMap[pedido]={pedido,liquido_mp:0,bruto_mp:0};
-          mpMap[pedido].liquido_mp+=liq;
-          mpMap[pedido].bruto_mp+=bruto;
+          const bruto    = U.parseNum(get(r,'bruto'));
+          const tarifaMp = Math.abs(U.parseNum(get(r,'tarifa_mp')));
+          const tarifaPlat = Math.abs(U.parseNum(get(r,'tarifa_plat')));
+          const frete    = Math.abs(U.parseNum(get(r,'frete')));
+          const desconto = Math.abs(U.parseNum(get(r,'desconto')));
+          const liq      = U.parseNum(get(r,'liquido_mp'));
+          const skuRaw   = (''+( get(r,'sku')||'' )).trim();
+          const prodRaw  = (''+( get(r,'produto')||'' )).trim();
+          const dataRaw  = get(r,'data');
+          if(!mpMap[pedido]){
+            mpMap[pedido]={
+              pedido, importId:stamp,
+              marketplace:'Mercado Livre', loja:loja||'Principal',
+              sku: skuRaw, produto: prodRaw,
+              data: (d=>d?U.iso(d):'')(U.parseDate(dataRaw)),
+              qtd:1,
+              valorBruto:0, taxa:0, comissao:0,
+              frete:0, freteSub:0, descontos:0,
+              liquido:0,
+              situacao:'ok'
+            };
+          }
+          const v=mpMap[pedido];
+          v.valorBruto  += bruto;
+          v.taxa        += tarifaMp;
+          v.comissao    += tarifaPlat;
+          v.frete       += frete;
+          v.descontos   += desconto;
+          v.liquido     += liq;
+          // usa SKU/produto da primeira linha não-vazia
+          if(!v.sku && skuRaw)   v.sku     = skuRaw;
+          if(!v.produto && prodRaw) v.produto = prodRaw;
+          if(!v.data && dataRaw) v.data    = (d=>d?U.iso(d):'')(U.parseDate(dataRaw));
         });
-        State.raw.mp=Object.values(mpMap);
+        records = Object.values(mpMap);
+        // Salva também em State.raw.mp para retrocompatibilidade do cruzamento
+        State.raw.mp = records.map(v=>({pedido:v.pedido, liquido_mp:v.liquido, bruto_mp:v.valorBruto}));
         await DB.put('config',{k:'mp_cobrancas',data:State.raw.mp});
-        records=State.raw.mp;
-        UI.toast('ok',`MP: ${records.length} pedidos carregados`,`Líquido real do MP disponível para cruzamento.`);
+        // Injeta como vendas normais (substitui/adiciona por importId)
+        await DB.bulk('vendas', records);
+        State.raw.vendas = await DB.getAll('vendas');
+        UI.toast('ok',`MP Cobranças: ${records.length} pedidos importados`,`Vendas do Mercado Livre salvas com taxas e líquido reais.`);
         Compute.run(); App.render(); return;
       }
       else if(type==='impostos'){
@@ -3405,7 +3441,7 @@ const VendasView = {
     // --- Cards de resumo ---
     const tot = r => ({
       bruto: data.reduce((s,x)=>s+(x.receitaBruta||0),0),
-      taxas: data.reduce((s,x)=>s+(x.taxas||0)+(x.frete||0),0),
+      taxas: data.reduce((s,x)=>s+(x.taxas||0)+(x.frete||0)+(x.descontos||0),0),
       liq:   data.reduce((s,x)=>s+(x.receitaLiquida||0),0),
       custo: data.reduce((s,x)=>s+(x.custoERP||0),0),
       imp:   data.reduce((s,x)=>s+(x.imposto||0),0),
@@ -3455,7 +3491,7 @@ const VendasView = {
     if(!tbody) return;
     tbody.innerHTML = slice.map(r=>{
       const liq = r.receitaLiquida||0;
-      const taxas = (r.taxas||0)+(r.frete||0);
+      const taxas = (r.taxas||0)+(r.frete||0)+(r.descontos||0);
       const lucro = r.lucroLiquido||0;
       const mg = r.receitaBruta ? lucro/r.receitaBruta*100 : 0;
       const lCls = lucro<0?'loss':lucro>0?'gain':'';
@@ -3520,7 +3556,7 @@ const VendasView = {
     if(!data.length){ UI.toast('warn','Nada para exportar'); return; }
     const cols = ['Data','Plataforma','Produto','SKU','Qtd','Bruto','Taxas plat.','Líquido rec.','Custo','Imposto','Lucro','Margem %'];
     const rows = data.map(r=>{
-      const taxas = (r.taxas||0)+(r.frete||0);
+      const taxas = (r.taxas||0)+(r.frete||0)+(r.descontos||0);
       const lucro = r.lucroLiquido||0;
       const mg = r.receitaBruta ? (lucro/r.receitaBruta*100).toFixed(2) : '0.00';
       return [
@@ -3793,13 +3829,13 @@ const UI = {
     const nav=document.getElementById('nav'); if(!nav||nav.dataset.grouped) return; nav.dataset.grouped='1';
     setTimeout(()=>{ if(nav) nav.style.opacity='1'; },0);
     const GROUPS=[
-      ['Visão',['dashboard','dre','marketplaces','tabela','rankings','alertas']],
+      ['Visão',['dashboard','dre','marketplaces','vendas','tabela','rankings','alertas']],
       ['Anúncios & Vendas',['mads','devol']],
       ['Produtos',['precificacao','viab']],
       ['Operação',['caixa','tarefas','plano']],
       ['Sistema',['dados','config']]
     ];
-    const COLORS={dashboard:'#3B82F6',dre:'#6366F1',marketplaces:'#0EA5E9',rankings:'#8B5CF6',tabela:'#06B6D4',alertas:'#EF4444',mads:'#F26522',devol:'#EC4899',precificacao:'#10B981',viab:'#14B8A6',caixa:'#F59E0B',tarefas:'#A855F7',plano:'#22C55E',dados:'#64748B',config:'#6B7280'};
+    const COLORS={dashboard:'#3B82F6',dre:'#6366F1',marketplaces:'#0EA5E9',vendas:'#06B6D4',rankings:'#8B5CF6',tabela:'#94A3B8',alertas:'#EF4444',mads:'#F26522',devol:'#EC4899',precificacao:'#10B981',viab:'#14B8A6',caixa:'#F59E0B',tarefas:'#A855F7',plano:'#22C55E',dados:'#64748B',config:'#6B7280'};
     Object.keys(COLORS).forEach(v=>{ const ic=nav.querySelector('.nav-item[data-view="'+v+'"] i'); if(ic) ic.style.color=COLORS[v]; });
     const save=(g,box)=>{ try{ localStorage.setItem('gbk-nav-g-'+g,JSON.stringify([...box.querySelectorAll('.nav-item')].map(b=>b.dataset.view))); }catch(_){} };
     const after=(box,y)=>{ const els=[...box.querySelectorAll('.nav-item:not(.nav-dragging)')]; let best=null,bo=-Infinity; els.forEach(c=>{ const b=c.getBoundingClientRect(); const off=y-b.top-b.height/2; if(off<0&&off>bo){ bo=off; best=c; } }); return best; };
@@ -7101,9 +7137,9 @@ const GUIA_IMPORT = {
     colunas:'ID do pedido, data, SKU, produto, quantidade, valor e status.',
     dica:'Use sempre o mesmo nome de loja no assistente (ex.: JNT Store) para não duplicar vendas.' },
   'Mercado Livre': { icon:'fa-store', cor:'#FFE600', dark:true,
-    passos:['No painel do Mercado Livre, acesse <b>Vendas</b>.','Clique em <b>Baixar relatório (Excel)</b>.','Escolha o período, se solicitado, e baixe o arquivo.'],
-    colunas:'Nº de venda, data, SKU/anúncio, título, quantidade, total e tarifas.',
-    dica:'O ML informa o valor realmente repassado — o sistema usa esse total como verdade (por isso aparece a linha "Outras deduções ML").' },
+    passos:['No painel do Mercado Pago, acesse <b>Relatórios</b> → <b>Dinheiro em conta</b>.','Selecione o tipo <b>Cobranças</b>.','Escolha o <b>período</b> desejado.','Clique em <b>Baixar</b> e salve o Excel/CSV.','No GBK-BI, use <b>Vendas ML (MP Cobranças)</b> para importar.'],
+    colunas:'order_id, seller_custom_field (SKU), reason (produto), transaction_amount, marketplace_fee, shipping_cost, coupon_fee, net_received_amount.',
+    dica:'Não precisa mais do relatório do Mercado Livre — o MP Cobranças já traz SKU, produto, taxas reais e líquido real em um único arquivo.' },
   Magalu: { icon:'fa-m', cor:'#0086FF',
     passos:['No painel do Magalu, vá em <b>Gestão de Pedidos</b>.','Abra <b>Relatório de Vendas</b>.','Selecione o <b>período</b>.','Clique em <b>Exportar relatório</b> e baixe.'],
     colunas:'Pedido, data, SKU, produto, quantidade e valor.',
