@@ -1897,7 +1897,18 @@ const COL_MAP = {
 const SKIP_COLS = new Set(['id','updated_at']); // colunas gerenciadas pelo banco
 function toDB(store,o){
   const m=COL_MAP[store]||{}, out={};
-  for(const k in o){ if(SKIP_COLS.has(k)) continue; out[m[k]||k]=o[k]; }
+  const DATE_COLS=new Set(['data','data_venda','date','created_at']);
+  for(const k in o){
+    if(SKIP_COLS.has(k)) continue;
+    let val=o[k];
+    // campos de data: "" vira null para evitar erro "invalid input syntax for type date"
+    const col=m[k]||k;
+    if(DATE_COLS.has(col)||DATE_COLS.has(k)){
+      if(val===''||val===undefined) val=null;
+      else if(typeof val==='string'&&!/^\d{4}-\d{2}-\d{2}/.test(val)) val=null;
+    }
+    out[col]=val;
+  }
   return out;
 }
 function fromDB(store,o){
@@ -2787,12 +2798,13 @@ const Importer = {
           const skuRaw   = (''+( get(r,'sku')||'' )).trim();
           const prodRaw  = (''+( get(r,'produto')||'' )).trim();
           const dataRaw  = get(r,'data');
+          const dataIso = (()=>{ const d=U.parseDate(dataRaw); const s=d?U.iso(d):''; return /^\d{4}-\d{2}-\d{2}$/.test(s)?s:null; })();
           if(!mpMap[pedido]){
             mpMap[pedido]={
               pedido, importId:stamp,
               marketplace:'Mercado Livre', loja:loja||'Principal',
               sku: skuRaw, produto: prodRaw,
-              data: (d=>d?U.iso(d):'')(U.parseDate(dataRaw)),
+              data: dataIso||null,
               qtd:1,
               valorBruto:0, taxa:0, comissao:0,
               frete:0, freteSub:0, descontos:0,
@@ -2807,10 +2819,10 @@ const Importer = {
           v.frete       += frete;
           v.descontos   += desconto;
           v.liquido     += liq;
-          // usa SKU/produto da primeira linha não-vazia
-          if(!v.sku && skuRaw)   v.sku     = skuRaw;
+          // usa SKU/produto/data da primeira linha não-vazia
+          if(!v.sku && skuRaw)     v.sku     = skuRaw;
           if(!v.produto && prodRaw) v.produto = prodRaw;
-          if(!v.data && dataRaw) v.data    = (d=>d?U.iso(d):'')(U.parseDate(dataRaw));
+          if(!v.data && dataIso)   v.data    = dataIso;
         });
         records = Object.values(mpMap);
         // Salva também em State.raw.mp para retrocompatibilidade do cruzamento
