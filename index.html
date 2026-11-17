@@ -1896,7 +1896,7 @@ const COL_MAP = {
   vendas:{ importId:'import_id', valorBruto:'valor_bruto', freteSub:'frete_sub', adsDireto:'ads_direto' },
   erp:{ precoVenda:'preco_venda' }
 };
-const SKIP_COLS = new Set(['id','updated_at','fonteMP']); // colunas gerenciadas pelo banco ou apenas locais
+const SKIP_COLS = new Set(['id','updated_at','fonteMP','fonte_mp']); // colunas gerenciadas pelo banco ou apenas locais
 function toDB(store,o){
   const m=COL_MAP[store]||{}, out={};
   const DATE_COLS=new Set(['data','data_venda','date','created_at']);
@@ -1915,7 +1915,7 @@ function toDB(store,o){
 }
 function fromDB(store,o){
   const m=COL_MAP[store]||{}, inv={}; for(const k in m) inv[m[k]]=k;
-  const out={}; for(const k in o){ if(k==='updated_at') continue; out[inv[k]||k]=o[k]; }
+  const out={}; for(const k in o){ if(SKIP_COLS.has(k)||k==='updated_at') continue; out[inv[k]||k]=o[k]; }
   return out;
 }
 const chaveVenda = v => `${v.marketplace}||${v.loja||'Principal'}||${v.pedido}||${v.sku}`;
