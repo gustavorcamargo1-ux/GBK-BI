@@ -2815,7 +2815,7 @@ const Importer = {
               marketplace:'Mercado Livre', loja:loja||'Principal',
               sku: skuRaw, produto: prodRaw,
               data: dataIso||null,
-              qtd:1, fonteMP:true,
+              qtd:1,
               valorBruto:0, taxa:0, comissao:0,
               frete:0, freteSub:0, descontos:0,
               liquido:0,
@@ -2972,8 +2972,10 @@ const Compute = {
 
     State.enriched=State.raw.vendas.filter(v=>!v.situacao||v.situacao==='ok').map(v=>{
       const e=erpMap[v.sku];
-      // Para MP Cobranças o valorBruto já é o total do pedido; para outros é unitário × qtd
-      const receitaBruta = v.fonteMP ? v.valorBruto : v.valorBruto*v.qtd;
+      // Para MP Cobranças o valorBruto já é o total do pedido (liquido>0 indica origem MP Cobranças)
+      // Para ML/Shopee normais, valorBruto é unitário e multiplica por qtd
+      const isMPCobrancas = v.liquido > 0;
+      const receitaBruta = isMPCobrancas ? v.valorBruto : v.valorBruto*v.qtd;
       // receita líquida: vem direto da venda (MP Cobranças) ou calculada pelos componentes
       // liquidoManual: correção manual do usuário tem prioridade absoluta
       const liqEfetivo = v.liquidoManual!=null ? v.liquidoManual : v.liquido;
