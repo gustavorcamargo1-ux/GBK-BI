@@ -2077,9 +2077,16 @@ const SCHEMAS = {
   ],
   mp:[
     {f:'pedido',      label:'N° Pedido ML (order_id)',  syn:['pedido','orderid','numerodavendanomercadolivre']},
+    {f:'data',        label:'Data da compra',           syn:['data','datacompra','datecreated','datacriacao']},
     {f:'status',      label:'Status',                   syn:['status','statusdaoperacao']},
-    {f:'bruto',       label:'Valor bruto (produto)',     syn:['bruto','valordoproduto','transactionamount']},
-    {f:'liquido_mp',  label:'Valor líquido recebido',    syn:['liquidomp','valortotalrecebido','netreceivedamount']}
+    {f:'sku',         label:'SKU do produto',           syn:['sku','skudoproduto','sellercustomfield','codigoreferencia']},
+    {f:'produto',     label:'Descrição da operação',    syn:['produto','descricaodaoperacao','reason','descricao']},
+    {f:'bruto',       label:'Valor bruto (produto)',    syn:['bruto','valordoproduto','transactionamount']},
+    {f:'tarifa_mp',   label:'Tarifa Mercado Pago',      syn:['tarifamp','tarifadomercadopago','mercadopagofee']},
+    {f:'tarifa_plat', label:'Tarifa plataforma',        syn:['tarifaplat','tarifapelousodarede','marketplacefee']},
+    {f:'frete',       label:'Frete',                   syn:['frete','shippingcost']},
+    {f:'desconto',    label:'Desconto/cupom',           syn:['desconto','descontocupom','couponfee']},
+    {f:'liquido_mp',  label:'Valor líquido recebido',   syn:['liquidomp','valortotalrecebido','netreceivedamount']}
   ],
   ads:[
     {f:'pedido',      label:'Pedido',      syn:['pedido','numeropedido','orderid','order']},
@@ -2833,7 +2840,7 @@ const Importer = {
         await DB.bulk('vendas', records);
         State.raw.vendas = await DB.getAll('vendas');
         UI.toast('ok',`MP Cobranças: ${records.length} pedidos importados`,`Vendas do Mercado Livre salvas com taxas e líquido reais.`);
-        Compute.run(); App.render(); return;
+        Compute.run(); App.refresh(); return;
       }
       else if(type==='impostos'){
         records=data.map(r=>({
