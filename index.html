@@ -2123,6 +2123,7 @@ const PRESETS = {
       tarifa_plat:'Tarifa pelo uso da plataforma de terceiros (marketplace_fee)',
       frete:    'Frete (shipping_cost)',
       desconto: 'Desconto para a sua contraparte (coupon_fee)',
+      fin_fee:  'Custos de parcelamento (financing_fee)',
       liquido_mp:'Valor total recebido (net_received_amount)'
     }
   },
@@ -2827,7 +2828,11 @@ const Importer = {
           v.comissao    += tarifaPlat;
           v.frete       += frete;
           v.descontos   += desconto;
-          v.liquido     += liq;
+          // Líquido: net_received é confiável quando > 50% do bruto (venda liberada)
+          // Se net < 50% do bruto → liberação ainda pendente → calcular pelos componentes
+          const liqCalc = (v.valorBruto>0 ? 0 : bruto) - tarifaMp - tarifaPlat - frete;
+          const liqFinal = (liq > 0 && liq >= bruto * 0.5) ? liq : liqCalc;
+          v.liquido     += liqFinal;
           // usa SKU/produto/data da primeira linha não-vazia
           if(!v.sku && skuRaw)     v.sku     = skuRaw;
           if(!v.produto && prodRaw) v.produto = prodRaw;
