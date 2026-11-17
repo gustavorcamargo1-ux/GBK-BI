@@ -2963,12 +2963,14 @@ const Compute = {
       const outras = v.liquido>0 ? 0 : (receitaBruta - taxas - frete - desc - receitaLiquida);
       const custoERP = e ? e.custo*v.qtd : 0;
 
-      // ADS: direto do registro (ex.: taxas de anúncio do repasse TikTok) ou rateado do relatório de ADS
+      // ADS: zero para vendas com líquido real (MP Cobranças — ads já embutido nas deduções)
       let ads=0;
-      if(v.adsDireto!=null){ ads=Math.abs(v.adsDireto); }
-      else if(adsOrder[v.pedido]!=null){ const tot=grossOrder[v.pedido]||1; ads=adsOrder[v.pedido]*(receitaBruta/tot); }
-      else if(adsSku[v.sku]!=null){ const tot=grossSku[v.sku]||1; ads=adsSku[v.sku]*(receitaBruta/tot); }
-      else if(v.marketplace==='Mercado Livre'&&_adsInPer(v.data)){ const kt=U.norm(v.produto||''); if(adsMLByTitle[kt]!=null&&grossMLByTitle[kt]>0){ ads=adsMLByTitle[kt]*(receitaBruta/grossMLByTitle[kt]); } }
+      if(v.liquido<=0){
+        if(v.adsDireto!=null){ ads=Math.abs(v.adsDireto); }
+        else if(adsOrder[v.pedido]!=null){ const tot=grossOrder[v.pedido]||1; ads=adsOrder[v.pedido]*(receitaBruta/tot); }
+        else if(adsSku[v.sku]!=null){ const tot=grossSku[v.sku]||1; ads=adsSku[v.sku]*(receitaBruta/tot); }
+        else if(v.marketplace==='Mercado Livre'&&_adsInPer(v.data)){ const kt=U.norm(v.produto||''); if(adsMLByTitle[kt]!=null&&grossMLByTitle[kt]>0){ ads=adsMLByTitle[kt]*(receitaBruta/grossMLByTitle[kt]); } }
+      }
       // rateio impostos: override por pedido (importado) tem prioridade;
       // senão, alíquota mensal do Simples sobre o faturamento (lojas isentas/MEI não tributam)
       let imposto=0;
