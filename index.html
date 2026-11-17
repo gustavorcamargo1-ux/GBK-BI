@@ -1896,7 +1896,7 @@ const COL_MAP = {
   vendas:{ importId:'import_id', valorBruto:'valor_bruto', freteSub:'frete_sub', adsDireto:'ads_direto', liquidoManual:'liquido_manual' },
   erp:{ precoVenda:'preco_venda' }
 };
-const SKIP_COLS = new Set(['id','updated_at','fonteMP','fonte_mp']); // colunas gerenciadas pelo banco ou apenas locais
+const SKIP_COLS = new Set(['id','updated_at','fonteMP','fonte_mp','revisar']); // colunas apenas locais, nunca enviar ao banco
 function toDB(store,o){
   const m=COL_MAP[store]||{}, out={};
   const DATE_COLS=new Set(['data','data_venda','date','created_at']);
