@@ -2838,7 +2838,17 @@ const Importer = {
           if(!v.produto && prodRaw) v.produto = prodRaw;
           if(!v.data && dataIso)   v.data    = dataIso;
         });
-        records = Object.values(mpMap);
+        // Inferir qtd: bruto total / preço unitário do ERP (arredonda para inteiro mais próximo)
+        const erpForQtd = {};
+        (State.raw.erp||[]).forEach(e=>{ if(e.sku) erpForQtd[e.sku]=e; });
+        records = Object.values(mpMap).map(v=>{
+          const e = erpForQtd[v.sku];
+          if(e && e.precoVenda>0 && v.valorBruto>0){
+            const qtdCalc = Math.round(v.valorBruto / e.precoVenda);
+            if(qtdCalc>=1) v.qtd = qtdCalc;
+          }
+          return v;
+        });
         // Salva também em State.raw.mp para retrocompatibilidade do cruzamento
         State.raw.mp = records.map(v=>({pedido:v.pedido, liquido_mp:v.liquido, bruto_mp:v.valorBruto}));
         await DB.put('config',{k:'mp_cobrancas',data:State.raw.mp});
