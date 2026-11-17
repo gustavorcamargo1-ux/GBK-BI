@@ -3576,11 +3576,12 @@ const VendasView = {
       const lCls = lucro<0?'loss':lucro>0?'gain':'';
       const mCls = mg<0?'loss':mg>=15?'gain':'warn';
       const pedidoKey = r.chave||r.pedido||'';
-      const liqCell = r.revisar
-        ? `<span style="color:#f59e0b;cursor:pointer;font-size:0.85em;margin-right:3px" title="Valor pode estar incorreto — clique para corrigir" onclick="VendasView._editLiquido('${pedidoKey}',${liq})">⚠</span>${U.brl(liq)}`
-        : r.liquidoManual!=null
-          ? `<span style="color:#22c55e;font-size:0.8em;margin-right:3px" title="Valor corrigido manualmente — clique para editar" onclick="VendasView._editLiquido('${pedidoKey}',${liq})">✓</span>${U.brl(liq)}`
-          : U.brl(liq);
+      const liqIcon = r.liquidoManual!=null
+        ? `<span style="color:#22c55e;font-size:0.8em;margin-right:3px" title="Valor corrigido manualmente — clique para editar" onclick="VendasView._editLiquido('${pedidoKey}',${liq})">✓</span>`
+        : r.revisar
+          ? `<span style="color:#f59e0b;cursor:pointer;font-size:0.85em;margin-right:3px" title="Valor pode estar incorreto — clique para corrigir" onclick="VendasView._editLiquido('${pedidoKey}',${liq})">⚠</span>`
+          : `<span style="color:#6b7280;cursor:pointer;font-size:0.75em;margin-right:3px" title="Clique para corrigir o valor líquido" onclick="VendasView._editLiquido('${pedidoKey}',${liq})">✎</span>`;
+      const liqCell = liqIcon + U.brl(liq);
       return `<tr>
         <td>${U.dataBR(r.data||'')}</td>
         <td>${U.mktBadge(r.marketplace,r.loja)}</td>
