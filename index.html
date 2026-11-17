@@ -331,10 +331,30 @@ table.dataTable tbody tr:hover{background:var(--panel-2) !important}
 
 /* ---- CARDS ROW / DATA ---- */
 .cards-row{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:14px}
-.count-card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:16px;display:flex;align-items:center;gap:14px}
+.count-card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:16px;display:flex;align-items:center;gap:14px;position:relative;transition:border-color .2s}
+.count-card.has-data{border-color:rgba(34,197,94,.35)}
+.count-card.no-data{border-color:rgba(239,68,68,.25);opacity:.75}
 .count-card .ic{width:42px;height:42px;border-radius:11px;background:var(--panel-2);display:grid;place-items:center;color:var(--brand-2);font-size:18px}
 .count-card .n{font-family:var(--font-display);font-size:22px;font-weight:700}
 .count-card .l{font-size:12px;color:var(--txt-2)}
+.count-status{margin-left:auto;font-size:15px}
+.count-card.has-data .count-status{color:#22c55e}
+.count-card.no-data .count-status{color:#ef4444}
+/* ---- GUIA GRID ---- */
+.guia-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px;margin-top:4px}
+.guia-card{border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;display:flex;flex-direction:column}
+.guia-header{display:flex;align-items:center;gap:10px;padding:12px 16px;font-weight:700;font-size:15px}
+.guia-mkt-icon{font-size:18px}
+.guia-mkt-name{font-size:14px;font-weight:700;letter-spacing:.3px}
+.guia-body{padding:14px 16px;display:flex;flex-direction:column;gap:10px;flex:1}
+.guia-steps-label{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--txt-2)}
+.guia-steps{display:flex;flex-direction:column;gap:6px}
+.guia-step{display:flex;align-items:flex-start;gap:8px;font-size:12.5px;line-height:1.4}
+.guia-step-n{min-width:20px;height:20px;border-radius:50%;background:var(--brand-2);color:#fff;display:grid;place-items:center;font-size:11px;font-weight:700;flex-shrink:0;margin-top:1px}
+.guia-col-box{font-size:11.5px;color:var(--txt-2);background:var(--panel-2);border-radius:6px;padding:8px 10px;line-height:1.5}
+.guia-col-box i{color:var(--brand-2);margin-right:4px}
+.guia-dica{font-size:11.5px;color:#E0A100;background:rgba(224,161,0,.08);border-radius:6px;padding:8px 10px;line-height:1.5}
+.guia-dica i{margin-right:4px}
 .config-grid{display:flex;flex-wrap:wrap;gap:16px;align-items:flex-end}
 .btn-row{display:flex;gap:10px;flex-wrap:wrap;margin-top:8px}
 .danger-zone{border-color:rgba(229,72,77,.3)}
@@ -4029,8 +4049,9 @@ const DataView = {
       {l:'MP Cobranças',i:'fa-money-bill-transfer',n:(State.raw.mp||[]).length}
     ];
     document.getElementById('data-counts').innerHTML=counts.map(c=>`
-      <div class="count-card"><div class="ic"><i class="fa-solid ${c.i}"></i></div>
-      <div><div class="n">${U.num(c.n)}</div><div class="l">${c.l}</div></div></div>`).join('');
+      <div class="count-card ${c.n>0?'has-data':'no-data'}"><div class="ic"><i class="fa-solid ${c.i}"></i></div>
+      <div><div class="n">${U.num(c.n)}</div><div class="l">${c.l}</div></div>
+      <div class="count-status">${c.n>0?'<i class="fa-solid fa-circle-check"></i>':'<i class="fa-solid fa-circle-xmark"></i>'}</div></div>`).join('');
 
     const h=[...State.history].reverse().slice(0,30);
     document.getElementById('import-history').innerHTML=
@@ -7246,16 +7267,23 @@ const GUIA_IMPORT = {
 };
 const Guia = {
   _cardHtml(nome,g){
+    const passos = g.passos.map((p,i)=>`<div class="guia-step"><span class="guia-step-n">${i+1}</span><span>${p}</span></div>`).join('');
     return `<div class="guia-card">
-      <div class="guia-h" style="border-color:${g.cor}"><span class="guia-ic" style="background:${g.cor};color:${g.dark?'#fff':'#111'}"><i class="fa-solid ${g.icon}"></i></span><b>${nome}</b></div>
-      <ol class="guia-passos">${g.passos.map(p=>`<li>${p}</li>`).join('')}</ol>
-      <div class="guia-col"><b>Colunas do arquivo:</b> ${g.colunas}</div>
-      ${g.dica?`<div class="guia-dica"><i class="fa-solid fa-lightbulb"></i> ${g.dica}</div>`:''}
+      <div class="guia-header" style="background:${g.cor};color:${g.dark?'#fff':'#111'}">
+        <i class="fa-solid ${g.icon} guia-mkt-icon"></i>
+        <span class="guia-mkt-name">${nome}</span>
+      </div>
+      <div class="guia-body">
+        <div class="guia-steps-label">Passo a passo</div>
+        <div class="guia-steps">${passos}</div>
+        <div class="guia-col-box"><i class="fa-solid fa-table-columns"></i> <b>Colunas:</b> <span>${g.colunas}</span></div>
+        ${g.dica?`<div class="guia-dica"><i class="fa-solid fa-lightbulb"></i> ${g.dica}</div>`:''}
+      </div>
     </div>`;
   },
   render(){
     const box=document.getElementById('guia-box'); if(!box) return;
-    box.innerHTML=Object.entries(GUIA_IMPORT).map(([n,g])=>this._cardHtml(n,g)).join('');
+    box.innerHTML=`<div class="guia-grid">${Object.entries(GUIA_IMPORT).map(([n,g])=>this._cardHtml(n,g)).join('')}</div>`;
   },
   contextual(mkt){
     const el=document.getElementById('map-guia'); if(!el) return;
