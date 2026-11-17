@@ -272,6 +272,7 @@ select.filter-empty{font-style:italic;color:var(--txt-3)}
 .vnd-table td.num{text-align:right;font-variant-numeric:tabular-nums}
 .vnd-table td.loss{color:#ef4444}
 .vnd-table td.gain{color:#22c55e}
+.vnd-table td.warn{color:#E0A100}
 .vnd-table tr:hover td{background:var(--panel-2)}
 .vnd-pagination{display:flex;align-items:center;justify-content:flex-end;gap:8px;padding:12px 4px 4px;font-size:13px;color:var(--txt-3)}
 .vnd-pagination button{background:var(--panel-2);border:1px solid var(--line);border-radius:6px;
@@ -2853,6 +2854,11 @@ const Importer = {
         State.raw.mp = records.map(v=>({pedido:v.pedido, liquido_mp:v.liquido, bruto_mp:v.valorBruto}));
         await DB.put('config',{k:'mp_cobrancas',data:State.raw.mp});
         // Injeta como vendas normais (substitui/adiciona por importId)
+        // Preservar correções manuais de líquido feitas pelo usuário
+        const existing = await DB.getAll('vendas');
+        const manualFix = {};
+        existing.forEach(v=>{ if(v.liquidoManual!=null) manualFix[v.pedido]=v.liquidoManual; });
+        records.forEach(v=>{ if(manualFix[v.pedido]!=null) v.liquidoManual=manualFix[v.pedido]; });
         await DB.bulk('vendas', records);
         State.raw.vendas = await DB.getAll('vendas');
         UI.loader(false);
@@ -2968,22 +2974,24 @@ const Compute = {
       const e=erpMap[v.sku];
       const receitaBruta=v.valorBruto*v.qtd;
       // receita líquida: vem direto da venda (MP Cobranças) ou calculada pelos componentes
-      const receitaLiquida = v.liquido>0 ? v.liquido : (()=>{
+      // liquidoManual: correção manual do usuário tem prioridade absoluta
+      const liqEfetivo = v.liquidoManual!=null ? v.liquidoManual : v.liquido;
+      const receitaLiquida = liqEfetivo>0 ? liqEfetivo : (()=>{
         const tx=Math.abs(v.taxa)+Math.abs(v.comissao);
         const ft=Math.abs(v.frete)-Math.abs(v.freteSub);
         const dc=Math.abs(v.descontos);
         return receitaBruta - tx - ft - dc;
       })();
       // taxas para exibição: quando liquido real disponível, dedução total = bruto - liquido
-      const taxas = v.liquido>0 ? Math.max(0, receitaBruta - v.liquido) : (Math.abs(v.taxa)+Math.abs(v.comissao));
-      const frete = v.liquido>0 ? 0 : (Math.abs(v.frete)-Math.abs(v.freteSub));
-      const desc  = v.liquido>0 ? 0 : Math.abs(v.descontos);
+      const taxas = liqEfetivo>0 ? Math.max(0, receitaBruta - liqEfetivo) : (Math.abs(v.taxa)+Math.abs(v.comissao));
+      const frete = liqEfetivo>0 ? 0 : (Math.abs(v.frete)-Math.abs(v.freteSub));
+      const desc  = liqEfetivo>0 ? 0 : Math.abs(v.descontos);
       const outras = 0;
       const custoERP = e ? e.custo*v.qtd : 0;
 
       // ADS: zero para vendas com líquido real (MP Cobranças — ads já embutido nas deduções)
       let ads=0;
-      if(v.liquido<=0){
+      if(liqEfetivo<=0){
         if(v.adsDireto!=null){ ads=Math.abs(v.adsDireto); }
         else if(adsOrder[v.pedido]!=null){ const tot=grossOrder[v.pedido]||1; ads=adsOrder[v.pedido]*(receitaBruta/tot); }
         else if(adsSku[v.sku]!=null){ const tot=grossSku[v.sku]||1; ads=adsSku[v.sku]*(receitaBruta/tot); }
@@ -3014,6 +3022,13 @@ const Compute = {
       // desconto concedido: do preço de tabela (ERP "Preço venda") para o preço efetivo de venda
       const precoTabela = (v.precoLista>0) ? v.precoLista : (e ? (e.precoVenda||0) : 0);
       const descontoPct = (precoTabela>0 && v.valorBruto>0) ? (precoTabela - v.valorBruto)/precoTabela*100 : null;
+      // flag revisar: NET do arquivo difere do calculado pelos componentes E não há correção manual
+      const liqCalcComp = v.valorBruto>0 ? (()=>{
+        const tx=Math.abs(v.taxa)+Math.abs(v.comissao);
+        const ft=Math.abs(v.frete)-Math.abs(v.freteSub);
+        return v.valorBruto*v.qtd - tx - ft;
+      })() : 0;
+      const revisar = v.liquidoManual==null && v.liquido>0 && Math.abs(v.liquido - liqCalcComp)>2;
 
       return {
         ...v,
@@ -3023,7 +3038,7 @@ const Compute = {
         descontoReal:(precoTabela>v.valorBruto ? (precoTabela-v.valorBruto)*v.qtd : desc),
         receitaBruta, taxas, frete, descontos:desc, outras,
         receitaLiquida, custoERP, ads, imposto,
-        lucroOperacional, lucroLiquido, margem
+        lucroOperacional, lucroLiquido, margem, revisar
       };
     });
   },
@@ -3446,6 +3461,22 @@ const VendasView = {
   _perPage:50,
   _filtered:[],
 
+  async _editLiquido(chave, liqAtual){
+    const novoStr = prompt(`Líquido atual: R$ ${liqAtual.toFixed(2)}\n\nDigite o valor líquido correto (ex: 97.42):`, liqAtual.toFixed(2));
+    if(novoStr===null) return;
+    const novo = parseFloat(novoStr.replace(',','.'));
+    if(isNaN(novo)||novo<0){ alert('Valor inválido'); return; }
+    // Busca a venda no banco e salva liquidoManual
+    const all = await DB.getAll('vendas');
+    const v = all.find(x=>(x.chaveVenda||x.pedido)===chave);
+    if(!v){ alert('Venda não encontrada'); return; }
+    v.liquidoManual = novo;
+    await DB.put('vendas', v);
+    State.raw.vendas = await DB.getAll('vendas');
+    await Compute.run();
+    this.render();
+  },
+
   render(){
     const rows = State.filtered || [];
 
@@ -3538,7 +3569,13 @@ const VendasView = {
       const lucro = r.lucroLiquido||0;
       const mg = r.receitaBruta ? lucro/r.receitaBruta*100 : 0;
       const lCls = lucro<0?'loss':lucro>0?'gain':'';
-      const mCls = mg<0?'loss':mg>0?'gain':'';
+      const mCls = mg<0?'loss':mg>=15?'gain':'warn';
+      const pedidoKey = r.chaveVenda||r.pedido||'';
+      const liqCell = r.revisar
+        ? `<span style="color:#f59e0b;cursor:pointer;font-size:0.85em;margin-right:3px" title="Valor pode estar incorreto — clique para corrigir" onclick="VendasView._editLiquido('${pedidoKey}',${liq})">⚠</span>${U.brl(liq)}`
+        : r.liquidoManual!=null
+          ? `<span style="color:#22c55e;font-size:0.8em;margin-right:3px" title="Valor corrigido manualmente — clique para editar" onclick="VendasView._editLiquido('${pedidoKey}',${liq})">✓</span>${U.brl(liq)}`
+          : U.brl(liq);
       return `<tr>
         <td>${U.dataBR(r.data||'')}</td>
         <td>${U.mktBadge(r.marketplace,r.loja)}</td>
@@ -3547,7 +3584,7 @@ const VendasView = {
         <td class="num">${r.qtd||1}</td>
         <td class="num">${U.brl(r.receitaBruta||0)}</td>
         <td class="num">${U.brl(taxas)}</td>
-        <td class="num">${U.brl(liq)}</td>
+        <td class="num">${liqCell}</td>
         <td class="num">${U.brl(r.custoERP||0)}</td>
         <td class="num">${U.brl(r.imposto||0)}</td>
         <td class="num ${lCls}">${U.brl(lucro)}</td>
