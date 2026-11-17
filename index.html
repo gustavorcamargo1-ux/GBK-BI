@@ -2839,6 +2839,7 @@ const Importer = {
         // Injeta como vendas normais (substitui/adiciona por importId)
         await DB.bulk('vendas', records);
         State.raw.vendas = await DB.getAll('vendas');
+        UI.loader(false);
         UI.toast('ok',`MP Cobranças: ${records.length} pedidos importados`,`Vendas do Mercado Livre salvas com taxas e líquido reais.`);
         Compute.run(); App.refresh(); return;
       }
@@ -2947,26 +2948,18 @@ const Compute = {
       });
     }
 
-    // MP: mapa por order_id para cruzamento de líquido real
-    const mpLiqMap={};
-    (State.raw.mp||[]).forEach(m=>{ if(m.pedido) mpLiqMap[m.pedido]=m; });
-
     State.enriched=State.raw.vendas.filter(v=>!v.situacao||v.situacao==='ok').map(v=>{
       const e=erpMap[v.sku];
       const receitaBruta=v.valorBruto*v.qtd;
-      // tarifas/descontos podem vir negativos (ex.: Mercado Livre) — usamos magnitude
+      // tarifas/descontos podem vir negativos — usamos magnitude
       const taxas=Math.abs(v.taxa)+Math.abs(v.comissao);
       // frete LÍQUIDO = tarifa de envio − receita por envio (desconto de frete do ML)
       const frete=Math.abs(v.frete)-Math.abs(v.freteSub);
       const desc=Math.abs(v.descontos);
-      // MP cruzamento: se houver líquido real do Mercado Pago, usa ele (mais preciso que o Total do ML)
-      const mpRec=mpLiqMap[v.pedido];
-      const liquidoMp=mpRec&&mpRec.liquido_mp>0?mpRec.liquido_mp:0;
-      // receita líquida real: MP (mais preciso) > Total ML > componentes calculados
-      const receitaLiquida = liquidoMp>0 ? liquidoMp : (v.liquido>0 ? v.liquido : (receitaBruta - taxas - frete - desc));
-      // resíduo: deduções do ML não detalhadas no relatório (IR/custo financeiro/custo de envio etc.)
-      // = 0 quando a receita líquida já vem de componentes (ex.: Shopee) ou quando MP fornece o líquido real
-      const outras = liquidoMp>0 ? 0 : (receitaBruta - taxas - frete - desc - receitaLiquida);
+      // receita líquida: vem direto da venda (MP Cobranças, Shopee, etc.) ou calculada pelos componentes
+      const receitaLiquida = v.liquido>0 ? v.liquido : (receitaBruta - taxas - frete - desc);
+      // resíduo: deduções não detalhadas (IR, custo financeiro etc.) — zero quando líquido vem do arquivo
+      const outras = v.liquido>0 ? 0 : (receitaBruta - taxas - frete - desc - receitaLiquida);
       const custoERP = e ? e.custo*v.qtd : 0;
 
       // ADS: direto do registro (ex.: taxas de anúncio do repasse TikTok) ou rateado do relatório de ADS
@@ -2981,7 +2974,8 @@ const Compute = {
       if(taxOrder[v.pedido]!=null){ const tot=grossOrder[v.pedido]||1; imposto=taxOrder[v.pedido]*(receitaBruta/tot); }
       else if(!isentas.has(v.loja||'Principal')){
         const mes=(v.data||'').slice(0,7);
-        const aliq=rates[mes]||0;
+        // fallback: se data ausente, usa a alíquota mais recente disponível
+        const aliq=rates[mes]||(mes?0:(()=>{const ks=Object.keys(rates).sort();return ks.length?rates[ks[ks.length-1]]:0;})());
         imposto=receitaBruta*aliq/100;
       }
 
