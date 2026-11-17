@@ -2846,7 +2846,18 @@ const Importer = {
           const e = erpForQtd[v.sku];
           if(e && e.precoVenda>0 && v.valorBruto>0){
             const qtdCalc = Math.round(v.valorBruto / e.precoVenda);
-            if(qtdCalc>=1) v.qtd = qtdCalc;
+            if(qtdCalc>=1){
+              v.qtd = qtdCalc;
+              if(qtdCalc>1){
+                // MP exporta totais do pedido; normaliza para unitário igual ML/Shopee
+                v.valorBruto = v.valorBruto / qtdCalc;
+                v.taxa       = v.taxa       / qtdCalc;
+                v.comissao   = v.comissao   / qtdCalc;
+                v.frete      = v.frete      / qtdCalc;
+                v.descontos  = v.descontos  / qtdCalc;
+                v.liquido    = v.liquido    / qtdCalc;
+              }
+            }
           }
           return v;
         });
@@ -2972,10 +2983,7 @@ const Compute = {
 
     State.enriched=State.raw.vendas.filter(v=>!v.situacao||v.situacao==='ok').map(v=>{
       const e=erpMap[v.sku];
-      // Para MP Cobranças o valorBruto já é o total do pedido (liquido>0 indica origem MP Cobranças)
-      // Para ML/Shopee normais, valorBruto é unitário e multiplica por qtd
-      const isMPCobrancas = v.liquido > 0;
-      const receitaBruta = isMPCobrancas ? v.valorBruto : v.valorBruto*v.qtd;
+      const receitaBruta = v.valorBruto*v.qtd;
       // receita líquida: vem direto da venda (MP Cobranças) ou calculada pelos componentes
       // liquidoManual: correção manual do usuário tem prioridade absoluta
       const liqEfetivo = v.liquidoManual!=null ? v.liquidoManual : v.liquido;
