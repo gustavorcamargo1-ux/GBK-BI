@@ -2846,7 +2846,17 @@ const Importer = {
           const e = erpForQtd[v.sku];
           if(e && e.precoVenda>0 && v.valorBruto>0){
             const qtdCalc = Math.round(v.valorBruto / e.precoVenda);
-            if(qtdCalc>=1) v.qtd = qtdCalc;
+            if(qtdCalc>1){
+              // Todos os valores do MP são totais do pedido.
+              // Compute.run faz receitaBruta = valorBruto * qtd → normaliza para unitário.
+              v.qtd        = qtdCalc;
+              v.valorBruto = v.valorBruto / qtdCalc;
+              v.taxa       = v.taxa       / qtdCalc;
+              v.comissao   = v.comissao   / qtdCalc;
+              v.frete      = v.frete      / qtdCalc;
+              v.descontos  = v.descontos  / qtdCalc;
+              v.liquido    = v.liquido    / qtdCalc;
+            }
           }
           return v;
         });
