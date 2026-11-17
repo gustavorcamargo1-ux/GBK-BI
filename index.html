@@ -1195,6 +1195,7 @@ textarea#tf-desc{min-height:170px !important;height:170px;max-height:50vh;resize
               <tr>
                 <th data-col="data" class="sortable">Data</th>
                 <th data-col="marketplace">Plataforma</th>
+                <th data-col="sku">SKU</th>
                 <th data-col="produto">Produto</th>
                 <th data-col="qtd" class="sortable num">Qtd</th>
                 <th data-col="receitaBruta" class="sortable num">Bruto</th>
@@ -2108,8 +2109,8 @@ const PRESETS = {
       pedido:   'Número da venda no Mercado Livre (order_id)',
       data:     'Data da compra (date_created)',
       status:   'Status da operação (status)',
-      sku:      'Código de referência do produto (seller_custom_field)',
-      produto:  'Descrição do produto (reason)',
+      sku:      'SKU do produto (seller_custom_field)',
+      produto:  'Descrição da operação (reason)',
       bruto:    'Valor do produto (transaction_amount)',
       tarifa_mp:'Tarifa do Mercado Pago (mercadopago_fee)',
       tarifa_plat:'Tarifa pelo uso da plataforma de terceiros (marketplace_fee)',
@@ -3511,7 +3512,8 @@ const VendasView = {
       return `<tr>
         <td>${U.dataBR(r.data||'')}</td>
         <td>${U.mktBadge(r.marketplace,r.loja)}</td>
-        <td style="max-width:220px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${(r.produto||'').replace(/"/g,'&quot;')}">${r.produto||r.sku||'—'}</td>
+        <td class="mono" style="font-size:0.78em;white-space:nowrap">${r.sku||'—'}</td>
+        <td style="max-width:200px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${(r.produto||'').replace(/"/g,'&quot;')}">${r.produto||r.sku||'—'}</td>
         <td class="num">${r.qtd||1}</td>
         <td class="num">${U.brl(r.receitaBruta||0)}</td>
         <td class="num">${U.brl(taxas)}</td>
@@ -3521,7 +3523,7 @@ const VendasView = {
         <td class="num ${lCls}">${U.brl(lucro)}</td>
         <td class="num ${mCls}">${mg.toFixed(1)}%</td>
       </tr>`;
-    }).join('') || '<tr><td colspan="11" class="muted" style="text-align:center;padding:24px">Nenhuma venda no filtro atual.</td></tr>';
+    }).join('') || '<tr><td colspan="12" class="muted" style="text-align:center;padding:24px">Nenhuma venda no filtro atual.</td></tr>';
 
     // --- Paginação ---
     const pagEl = document.getElementById('vnd-pagination');
