@@ -8876,6 +8876,8 @@ const App = {
     // alteração manual de data limpa o destaque do período rápido
     ['f-from','f-to'].forEach(id=>document.getElementById(id).addEventListener('input',()=>
       document.querySelectorAll('.qr-btn').forEach(x=>x.classList.remove('active'))));
+    // padrão: mês atual ao iniciar
+    Filters.quickRange('month', document.querySelector('.qr-btn[data-range="month"]'));
     document.getElementById('f-busca').oninput=this._debounce(()=>this.refresh(),350);
     document.getElementById('f-prejuizo').onchange=()=>this.refresh();
     document.getElementById('f-clear').onclick=()=>Filters.clear();
