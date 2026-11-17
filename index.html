@@ -1896,7 +1896,7 @@ const COL_MAP = {
   vendas:{ importId:'import_id', valorBruto:'valor_bruto', freteSub:'frete_sub', adsDireto:'ads_direto', liquidoManual:'liquido_manual' },
   erp:{ precoVenda:'preco_venda' }
 };
-const SKIP_COLS = new Set(['id','updated_at','fonteMP','fonte_mp','revisar']); // colunas apenas locais, nunca enviar ao banco
+const SKIP_COLS = new Set(['id','updated_at','fonteMP','fonte_mp','revisar','qtdReal','qtd_real']); // colunas apenas locais, nunca enviar ao banco
 function toDB(store,o){
   const m=COL_MAP[store]||{}, out={};
   const DATE_COLS=new Set(['data','data_venda','date','created_at']);
@@ -2823,8 +2823,8 @@ const Importer = {
             };
           }
           const v=mpMap[pedido];
-          // valorBruto = valor do produto (somente da 1ª linha com bruto>0; linhas de frete/taxa não somam)
-          if(v.valorBruto===0 && bruto>0) v.valorBruto = bruto;
+          // valorBruto = soma de todas as linhas com bruto>0 (meios combinados geram múltiplas linhas)
+          if(bruto>0) v.valorBruto += bruto;
           v.taxa        += tarifaMp;
           v.comissao    += tarifaPlat;
           v.frete       += frete;
@@ -2839,24 +2839,18 @@ const Importer = {
           if(!v.produto && prodRaw) v.produto = prodRaw;
           if(!v.data && dataIso)   v.data    = dataIso;
         });
-        // Inferir qtd: bruto total / preço unitário do ERP (arredonda para inteiro mais próximo)
+        // Inferir qtdReal (quantidade física) só para multiplicar o custo.
+        // valorBruto/taxas/liquido já são totais do pedido → qtd fica sempre 1 para não duplicar.
         const erpForQtd = {};
         (State.raw.erp||[]).forEach(e=>{ if(e.sku) erpForQtd[e.sku]=e; });
         records = Object.values(mpMap).map(v=>{
           const e = erpForQtd[v.sku];
           if(e && e.precoVenda>0 && v.valorBruto>0){
             const qtdCalc = Math.round(v.valorBruto / e.precoVenda);
-            if(qtdCalc>=1){
-              v.qtd = qtdCalc;
-              if(qtdCalc>1){
-                // MP exporta totais do pedido; normaliza para unitário igual ML/Shopee
-                v.valorBruto = v.valorBruto / qtdCalc;
-                v.taxa       = v.taxa       / qtdCalc;
-                v.comissao   = v.comissao   / qtdCalc;
-                v.frete      = v.frete      / qtdCalc;
-                v.descontos  = v.descontos  / qtdCalc;
-                v.liquido    = v.liquido    / qtdCalc;
-              }
+            if(qtdCalc>=2){
+              const esperado = e.precoVenda * qtdCalc;
+              const diff = Math.abs(v.valorBruto - esperado) / esperado;
+              if(diff <= 0.10) v.qtdReal = qtdCalc; // só para o custo
             }
           }
           return v;
@@ -2998,7 +2992,8 @@ const Compute = {
       const frete = liqEfetivo>0 ? 0 : (Math.abs(v.frete)-Math.abs(v.freteSub));
       const desc  = liqEfetivo>0 ? 0 : Math.abs(v.descontos);
       const outras = 0;
-      const custoERP = e ? e.custo*v.qtd : 0;
+      const qtdParaCusto = v.qtdReal || v.qtd;
+      const custoERP = e ? e.custo*qtdParaCusto : 0;
 
       // ADS: zero para vendas com líquido real (MP Cobranças — ads já embutido nas deduções)
       let ads=0;
@@ -3598,7 +3593,7 @@ const VendasView = {
         <td>${U.mktBadge(r.marketplace,r.loja)}</td>
         <td class="mono" style="font-size:0.78em;white-space:nowrap">${r.sku||'—'}</td>
         <td style="max-width:200px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${(r.produto||'').replace(/"/g,'&quot;')}">${r.produto||r.sku||'—'}</td>
-        <td class="num">${r.qtd||1}</td>
+        <td class="num">${r.qtdReal||r.qtd||1}</td>
         <td class="num">${U.brl(r.receitaBruta||0)}</td>
         <td class="num">${U.brl(taxas)}</td>
         <td class="num">${liqCell}</td>
