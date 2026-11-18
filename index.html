@@ -2248,22 +2248,36 @@ const PRESETS = {
   'tiktok_repasse':{
     type:'vendas',
     marketplace:'TikTok Shop',
-    signature:['Order earnings','Platform commission fee','GMV Max ad fee'],
+    signature:['Receita do pedido','Tarifa de comissão da plataforma','Taxa de anúncio de GMV Max'],
+    signatureAlt:['Order earnings','Platform commission fee','GMV Max ad fee'],
     map:{
+      pedido:'ID do pedido',
+      sku:'ID do SKU',
+      data:'Data de pagamento do pedido',
+      produto:'Nome do produto',
+      qtd:'Itens vendidos',
+      valorBruto:'Receita do pedido',
+      precoLista:'Subtotal do item antes dos descontos'
+    },
+    mapAlt:{
       pedido:'Order ID',
+      sku:'SKU ID',
       data:'Order paid date',
       produto:'Product name',
       qtd:'Items sold',
-      valorBruto:'Order earnings',     // total da linha (receita após desconto do vendedor) → dividido por qtd
-      precoLista:'Item subtotal before discounts'  // preço cheio da linha → permite calcular o desconto concedido
+      valorBruto:'Order earnings',
+      precoLista:'Item subtotal before discounts'
     },
-    // taxa = soma das taxas de marketplace; ads = taxas de anúncio (entram no ROI)
     composite:{
+      taxa:['Tarifa de comissão da plataforma','Comissão paga aos criadores','Comissão paga às agências parceiras','Taxa de serviço do SFP','Taxa por item vendido','ICMS DIFAL','Multa de ICMS'],
+      ads:['Taxa de anúncio de GMV Max','Comissão de Anúncios da loja paga aos criadores','Comissão de Anúncios da loja paga às agências parceiras']
+    },
+    compositeAlt:{
       taxa:['Platform commission fee','Commission paid to creators','Commission paid to affiliate partners','SFP service fee','Fee per item sold','ICMS DIFAL','ICMS penalty'],
       ads:['GMV Max ad fee','Shop Ads commission paid to creators','Shop Ads commission paid to affiliate partners']
     },
-    perUnit:['valorBruto','precoLista'],   // são totais da linha → viram unitários
-    matchByName:true          // repasse não traz Seller SKU → casa custo pelo nome do produto no ERP
+    perUnit:['valorBruto','precoLista'],
+    matchByName:false
   }
 };
 
@@ -2419,18 +2433,21 @@ const Importer = {
       const p=PRESETS[id];
       if(p.type!==type) continue;
       const ok=p.signature.every(s=>nmap[U.norm(s)]!=null);
-      if(ok){
+      const okAlt=!ok&&p.signatureAlt&&p.signatureAlt.every(s=>nmap[U.norm(s)]!=null);
+      if(ok||okAlt){
+        const activeMap=okAlt&&p.mapAlt ? p.mapAlt : p.map;
+        const activeComposite=okAlt&&p.compositeAlt ? p.compositeAlt : p.composite;
         const resolved={};
-        for(const f in p.map){ const h=nmap[U.norm(p.map[f])]; if(h) resolved[f]=h; }
+        for(const f in activeMap){ const h=nmap[U.norm(activeMap[f])]; if(h) resolved[f]=h; }
         let avista=null;
         if(p.avistaRatio){
           const c=nmap[U.norm(p.avistaRatio.charged)], l=nmap[U.norm(p.avistaRatio.list)];
           if(c&&l) avista={charged:c,list:l};
         }
         let composite=null;
-        if(p.composite){
+        if(activeComposite){
           composite={};
-          for(const f in p.composite) composite[f]=p.composite[f].map(h=>nmap[U.norm(h)]).filter(Boolean);
+          for(const f in activeComposite) composite[f]=activeComposite[f].map(h=>nmap[U.norm(h)]).filter(Boolean);
         }
         let skipStatus=null;
         if(p.skipStatus){
