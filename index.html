@@ -3590,14 +3590,16 @@ const VendasView = {
       custo: data.reduce((s,x)=>s+(x.custoERP||0),0),
       imp:   data.reduce((s,x)=>s+(x.imposto||0),0),
       lucro: data.reduce((s,x)=>s+(x.lucroLiquido||0),0),
-      n:     data.length
+      n:     data.length,
+      ped:   new Set(data.map(x=>(x.marketplace||'')+'|'+(x.loja||'')+'|'+(x.pedido||''))).size
     });
     const t = tot();
     const margem = t.bruto ? t.lucro/t.bruto*100 : 0;
 
     const cardsEl = document.getElementById('vnd-cards');
     if(cardsEl) cardsEl.innerHTML = [
-      {label:'Pedidos',       val: t.n,              fmt: v=>v.toLocaleString('pt-BR'),    cls:''},
+      {label:'Pedidos',        val: t.ped,             fmt: v=>v.toLocaleString('pt-BR'),    cls:'', sub:'pedidos únicos'},
+      {label:'Itens',          val: t.n,              fmt: v=>v.toLocaleString('pt-BR'),    cls:'', sub:'linhas vendidas'},
       {label:'Faturamento',   val: t.bruto,           fmt: U.brl,                           cls:''},
       {label:'Taxas plat.',   val: t.taxas,           fmt: U.brl,                           cls:''},
       {label:'Líquido rec.',  val: t.liq,             fmt: U.brl,                           cls:''},
@@ -3609,11 +3611,12 @@ const VendasView = {
       <div class="vnd-card ${c.cls}">
         <div class="vc-label">${c.label}</div>
         <div class="vc-val">${c.fmt(c.val)}</div>
+        ${c.sub?`<div class="vc-sub">${c.sub}</div>`:''}
       </div>`).join('');
 
     // Contador
     const countEl = document.getElementById('vnd-count');
-    if(countEl) countEl.textContent = `${data.length} ${data.length===1?'venda':'vendas'}`;
+    if(countEl) countEl.textContent = `${t.ped} ${t.ped===1?'pedido':'pedidos'} · ${data.length} ${data.length===1?'item':'itens'}`;
 
     // Atualizar ícones de sort nos headers
     document.querySelectorAll('#vnd-table th.sortable').forEach(th=>{
