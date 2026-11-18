@@ -800,17 +800,38 @@ body.role-viewer .pricing-edit{display:none}
 .rot-add-btn{padding:7px 14px;font-size:12px;color:var(--txt-3);display:flex;align-items:center;gap:6px;cursor:pointer;border-top:1px solid var(--line)}
 .rot-add-btn:hover{color:var(--brand)}
 /* --- Smart sort list --- */
-.lst-chip{padding:4px 12px;border-radius:20px;border:1px solid var(--line);background:transparent;color:var(--txt-2);font-size:12px;font-weight:600;cursor:pointer;transition:.12s}
+.lst-chip{padding:4px 14px;border-radius:20px;border:1px solid var(--line);background:transparent;color:var(--txt-2);font-size:12px;font-weight:600;cursor:pointer;transition:.12s}
 .lst-chip:hover{border-color:var(--brand);color:var(--brand)}
 .lst-chip.active{background:#F26522;border-color:#F26522;color:#fff}
-.lst-table{width:100%;border-collapse:collapse}
-.lst-table thead th{font-size:11px;font-weight:700;color:var(--txt-3);text-transform:uppercase;padding:8px 10px;border-bottom:1px solid var(--line);text-align:left}
+.lst-table{width:100%;border-collapse:collapse;table-layout:fixed}
+.lst-table thead th{font-size:11px;font-weight:700;color:var(--txt-3);text-transform:uppercase;padding:10px 12px;border-bottom:2px solid var(--line);text-align:left}
 .lst-row{cursor:pointer;transition:.1s}
 .lst-row:hover td{background:var(--hover)}
-.lst-row td{padding:7px 10px;border-bottom:1px solid var(--line);font-size:13px;vertical-align:middle}
-.lst-prio{font-size:14px;text-align:center}
-.lst-titulo{font-weight:500;color:var(--txt-1)}
-.lst-meta{display:flex;gap:6px;align-items:center}
+.lst-row.lst-sel td{background:rgba(242,101,34,.07)}
+.lst-row td{padding:10px 12px;border-bottom:1px solid var(--line);font-size:13px;vertical-align:middle}
+.lst-chk{width:36px!important;text-align:center}
+.lst-chk input[type=checkbox]{width:15px;height:15px;cursor:pointer;accent-color:#F26522}
+.lst-prio{font-size:16px;text-align:center;width:40px!important}
+.lst-titulo{font-weight:500;color:var(--txt-1);font-size:14px}
+.lst-sub{font-size:12px;color:var(--txt-3);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lst-meta{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.lst-bulk{display:flex;align-items:center;gap:10px;padding:9px 14px;background:rgba(242,101,34,.1);border:1px solid rgba(242,101,34,.3);border-radius:10px;margin-bottom:10px;flex-wrap:wrap}
+.lst-bulk span{font-size:13px;font-weight:600;color:var(--txt-1);margin-right:4px}
+.lst-bulk-btn{padding:5px 13px;border-radius:7px;border:1px solid var(--line);background:var(--panel);color:var(--txt-1);font-size:12px;font-weight:600;cursor:pointer;transition:.12s}
+.lst-bulk-btn:hover{border-color:var(--brand);color:var(--brand)}
+.lst-bulk-btn.danger:hover{border-color:#E5484D;color:#E5484D}
+/* Floating Notes */
+.notas-fab{position:fixed;bottom:28px;right:24px;width:50px;height:50px;border-radius:50%;background:#F26522;color:#fff;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:20px;box-shadow:0 4px 16px rgba(0,0,0,.25);z-index:900;transition:.2s}
+.notas-fab:hover{transform:scale(1.08);background:#d9541a}
+.notas-panel{position:fixed;bottom:88px;right:24px;width:320px;max-height:420px;background:var(--panel);border:1px solid var(--line);border-radius:16px;box-shadow:0 8px 32px rgba(0,0,0,.18);z-index:901;display:flex;flex-direction:column;overflow:hidden;transform:scale(.92) translateY(10px);opacity:0;pointer-events:none;transition:.2s cubic-bezier(.4,0,.2,1)}
+.notas-panel.open{transform:scale(1) translateY(0);opacity:1;pointer-events:all}
+.notas-panel-hdr{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--line);flex-shrink:0}
+.notas-panel-hdr h4{margin:0;font-size:14px;font-weight:700;color:var(--txt-1)}
+.notas-panel-hdr button{background:none;border:none;cursor:pointer;color:var(--txt-3);font-size:16px;padding:2px 6px;border-radius:6px;transition:.12s}
+.notas-panel-hdr button:hover{background:var(--hover);color:var(--txt-1)}
+.notas-panel textarea{flex:1;min-height:280px;resize:none;border:none;background:transparent;color:var(--txt-1);font-size:13px;line-height:1.6;padding:14px 16px;font-family:inherit;outline:none}
+.notas-panel-foot{padding:8px 14px;border-top:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+.notas-saved{font-size:11px;color:var(--txt-3);font-style:italic}
 .ss-wrap{margin-top:4px}
 .ss-list{display:flex;flex-direction:column;gap:8px}
 .ss-item{display:flex;align-items:center;gap:12px;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:11px 14px;cursor:pointer;transition:.12s}
@@ -6040,7 +6061,7 @@ const Tarefas = {
     else if(this._view==='rotina') this._wireRotina(el);
     else if(this._view==='eisenhower') this._wireEisenhower(el);
     else if(this._view==='smartsort') this._wireClickCards(el);
-    else if(this._view==='lista') this._wireClickCards(el);
+    else if(this._view==='lista') this._wireLista(el);
     /* Force active tab highlight after DOM is written */
     const _v=Tarefas._view;
     el.querySelectorAll('.tf-view-btn').forEach(btn=>{
@@ -6137,7 +6158,7 @@ const Tarefas = {
       const dateStr=`${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
       const isToday=dateStr===hoje;
       const tasks=(byDate[dateStr]||[]).slice(0,3);
-      const dots=tasks.map(t=>`<div class="cal-dot prio-${t.prioridade||'media'}${t.status==='done'?' done-task':''}" data-id="${t.id}" title="${this._esc(t.titulo)}">${this._esc(t.titulo)}</div>`).join('');
+      const dots=tasks.map(t=>`<div class="cal-dot prio-${t.prioridade||'media'}${t.status==='done'?' done-task':''}" data-id="${t.id}" title="${this._esc(t.titulo)}" draggable="true">${this._esc(t.titulo)}</div>`).join('');
       const more=(byDate[dateStr]||[]).length>3?`<div class="cal-dot" style="color:var(--txt-3)">+${(byDate[dateStr]||[]).length-3} mais</div>`:'';
       cells+=`<div class="cal-day${isToday?' today':''}" data-caldate="${dateStr}"><div class="cal-day-num"${isToday?'':''} >${d}</div><div class="cal-day-dots">${dots}${more}</div></div>`;
     }
@@ -6292,6 +6313,7 @@ const Tarefas = {
 
   /* ========== VIEW: LISTA ========== */
   _listaFiltro: 'ativo', // 'ativo' | 'todo' | 'doing' | 'done' | 'todas'
+  _listaSel: new Set(),
   _renderLista(){
     const PR={alta:'🔴',media:'🟡',baixa:'🟢'};
     const ST={todo:'A fazer',doing:'Em andamento',done:'Concluída'};
@@ -6306,6 +6328,14 @@ const Tarefas = {
       {k:'todas', l:'Todas'}
     ].map(c=>`<button class="lst-chip${lf===c.k?' active':''}" onclick="Tarefas._listaFiltro='${c.k}';Tarefas.render()">${c.l}</button>`).join('');
     if(!filtered.length) return `<div class="panel"><div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:4px">${chips}</div></div><div class="panel"><div class="kb-empty" style="padding:30px">Sem tarefas.</div></div>`;
+    const sel=this._listaSel;
+    const allIds=filtered.map(t=>t.id);
+    const allChk=allIds.length&&allIds.every(id=>sel.has(id));
+    const bulkBar=sel.size?`<div class="lst-bulk"><span><b>${sel.size}</b> selecionada(s)</span>
+      <button class="lst-bulk-btn" id="lb-status"><i class="fa-solid fa-rotate"></i> Alterar status</button>
+      <button class="lst-bulk-btn" id="lb-prazo"><i class="fa-regular fa-calendar"></i> Alterar prazo</button>
+      <button class="lst-bulk-btn danger" id="lb-del"><i class="fa-solid fa-trash"></i> Excluir</button>
+      <button class="lst-bulk-btn" id="lb-clear"><i class="fa-solid fa-xmark"></i> Limpar seleção</button></div>`:'';
     const rows=filtered.map(t=>{
       const pi=this._prazoInfo(t);
       const prazoTxt=t.prazo?`<span class="kb-prazo ${pi?pi.cls:''}">${pi?pi.dot+' '+pi.txt:'📅 '+this._fmtDate(t.prazo)}</span>`:'<span class="muted">—</span>';
@@ -6313,28 +6343,34 @@ const Tarefas = {
       const chk=(t.checklist&&t.checklist.length)?`<span class="kb-chk"><i class="fa-solid fa-list-check"></i> ${t.checklist.filter(c=>c.done).length}/${t.checklist.length}</span>`:'';
       const rec=(t.recorrencia&&t.recorrencia!=='none')?`<span class="kb-rec"><i class="fa-solid fa-rotate"></i></span>`:'';
       const stBadge=`<span class="ss-badge${t.status==='doing'?' importante':''}">${ST[t.status]||t.status}</span>`;
-      return `<tr class="lst-row" data-id="${t.id}">
+      const checked=sel.has(t.id)?'checked':'';
+      const descPreview=t.descricao?`<div class="lst-sub">${this._esc(t.descricao.substring(0,60))}${t.descricao.length>60?'…':''}</div>`:'';
+      return `<tr class="lst-row${sel.has(t.id)?' lst-sel':''}" data-id="${t.id}">
+        <td class="lst-chk" style="text-align:center"><input type="checkbox" class="lst-cb" data-id="${t.id}" ${checked} onclick="event.stopPropagation()"></td>
         <td class="lst-prio">${PR[t.prioridade||'media']}</td>
-        <td class="lst-titulo">${this._esc(t.titulo)}</td>
-        <td class="lst-status">${stBadge}</td>
-        <td class="lst-cat">${cat}</td>
-        <td class="lst-prazo">${prazoTxt}</td>
-        <td class="lst-meta">${chk}${rec}</td>
+        <td><div class="lst-titulo">${this._esc(t.titulo)}</div>${descPreview}</td>
+        <td>${stBadge}</td>
+        <td style="font-size:12px;color:var(--txt-2)">${cat}</td>
+        <td>${prazoTxt}</td>
+        <td style="text-align:center"><div class="lst-meta" style="justify-content:center">${chk}${rec}</div></td>
       </tr>`;
     }).join('');
-    return `<div class="panel" style="padding-bottom:4px"><div style="display:flex;gap:6px;flex-wrap:wrap">${chips}</div></div>
-      <div class="panel" style="padding:0 0 4px 0">
-      <table class="simple-table lst-table">
+    return `<div class="panel" style="padding-bottom:8px"><div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center"><i class="fa-solid fa-list" style="color:var(--txt-3);font-size:13px"></i><span style="font-size:13px;color:var(--txt-3);margin-right:4px">${filtered.length} tarefa(s)</span>${chips}</div></div>
+      ${bulkBar}
+      <div class="panel" style="padding:0;overflow:hidden">
+      <div style="overflow-x:auto">
+      <table class="lst-table" style="min-width:600px">
         <thead><tr>
-          <th style="width:30px"></th>
-          <th>Tarefa</th>
-          <th style="width:130px">Status</th>
+          <th class="lst-chk" style="text-align:center"><input type="checkbox" id="lst-chk-all" ${allChk?'checked':''}></th>
+          <th class="lst-prio">Pri.</th>
+          <th style="min-width:200px">Tarefa</th>
+          <th style="width:140px">Status</th>
           <th style="width:130px">Categoria</th>
           <th style="width:140px">Prazo</th>
-          <th style="width:80px"></th>
+          <th style="width:80px;text-align:center">Info</th>
         </tr></thead>
         <tbody>${rows}</tbody>
-      </table></div>`;
+      </table></div></div>`;
   },
 
   _setView(v){ Tarefas._view=v; Tarefas.render(); },
@@ -6364,8 +6400,17 @@ const Tarefas = {
   _wireCalendar(el){
     const prev=el.querySelector('#cal-prev'); if(prev) prev.onclick=()=>{ this._calMonth--; if(this._calMonth<0){this._calMonth=11;this._calYear--;} this.render(); };
     const next=el.querySelector('#cal-next'); if(next) next.onclick=()=>{ this._calMonth++; if(this._calMonth>11){this._calMonth=0;this._calYear++;} this.render(); };
-    el.querySelectorAll('.cal-dot[data-id]').forEach(d=>d.onclick=e=>{ e.stopPropagation(); this._editModal(d.dataset.id); });
-    el.querySelectorAll('.cal-day[data-caldate]').forEach(d=>d.onclick=e=>{ if(e.target.closest('.cal-dot[data-id]')) return; this._editModal(null,d.dataset.caldate); });
+    el.querySelectorAll('.cal-dot[data-id]').forEach(d=>{
+      d.onclick=e=>{ e.stopPropagation(); this._editModal(d.dataset.id); };
+      d.ondragstart=e=>{ e.dataTransfer.setData('text/plain',d.dataset.id); d.classList.add('dragging'); };
+      d.ondragend=()=>d.classList.remove('dragging');
+    });
+    el.querySelectorAll('.cal-day[data-caldate]').forEach(day=>{
+      day.onclick=e=>{ if(e.target.closest('.cal-dot[data-id]')) return; this._editModal(null,day.dataset.caldate); };
+      day.ondragover=e=>{ e.preventDefault(); day.classList.add('cal-drag-over'); };
+      day.ondragleave=()=>day.classList.remove('cal-drag-over');
+      day.ondrop=e=>{ e.preventDefault(); day.classList.remove('cal-drag-over'); const id=e.dataTransfer.getData('text/plain'); const t=this.list().find(x=>x.id===id); if(t&&day.dataset.caldate){ t.prazo=day.dataset.caldate; this._save().then(()=>{ this.render(); UI.toast('ok','Prazo atualizado',this._fmtDate(day.dataset.caldate)); }); } };
+    });
   },
   _wireRotina(el){
     el.querySelectorAll('.rot-item[data-rot]').forEach(item=>item.onclick=async()=>{
@@ -6387,6 +6432,20 @@ const Tarefas = {
   },
   _wireClickCards(el){
     el.querySelectorAll('[data-id]').forEach(c=>c.onclick=()=>this._editModal(c.dataset.id));
+  },
+  _wireLista(el){
+    const sel=this._listaSel;
+    // clique na linha abre modal
+    el.querySelectorAll('.lst-row').forEach(r=>r.onclick=e=>{ if(e.target.closest('.lst-cb')) return; this._editModal(r.dataset.id); });
+    // checkboxes individuais
+    el.querySelectorAll('.lst-cb').forEach(cb=>cb.onchange=()=>{ if(cb.checked) sel.add(cb.dataset.id); else sel.delete(cb.dataset.id); this.render(); });
+    // selecionar todos
+    const all=el.querySelector('#lst-chk-all'); if(all) all.onchange=()=>{ el.querySelectorAll('.lst-cb').forEach(cb=>{ if(all.checked) sel.add(cb.dataset.id); else sel.delete(cb.dataset.id); }); this.render(); };
+    // bulk actions
+    const clr=el.querySelector('#lb-clear'); if(clr) clr.onclick=()=>{ sel.clear(); this.render(); };
+    const del=el.querySelector('#lb-del'); if(del) del.onclick=async()=>{ if(!confirm(`Excluir ${sel.size} tarefa(s)?`)) return; State.tarefas=(State.tarefas||[]).filter(t=>!sel.has(t.id)); await this._save(); sel.clear(); this.updateBadge(); this.render(); UI.toast('warn','Excluídas'); };
+    const prazo=el.querySelector('#lb-prazo'); if(prazo) prazo.onclick=()=>{ const d=prompt('Novo prazo (AAAA-MM-DD):',new Date().toISOString().slice(0,10)); if(!d||!/^\d{4}-\d{2}-\d{2}$/.test(d)) return; sel.forEach(id=>{ const t=this.list().find(x=>x.id===id); if(t) t.prazo=d; }); this._save().then(()=>{ sel.clear(); this.render(); UI.toast('ok','Prazo atualizado'); }); };
+    const status=el.querySelector('#lb-status'); if(status) status.onclick=()=>{ const opts=['todo','doing','done']; const labels={'todo':'A fazer','doing':'Em andamento','done':'Concluída'}; const esc=prompt('Novo status:\n1 = A fazer\n2 = Em andamento\n3 = Concluída','1'); const s=opts[parseInt(esc||'1')-1]; if(!s) return; sel.forEach(id=>{ const t=this.list().find(x=>x.id===id); if(t) t.status=s; }); this._save().then(()=>{ sel.clear(); this.render(); UI.toast('ok','Status atualizado',labels[s]); }); };
   },
   _wireEisenhower(el){
     // Checkbox = seleciona; resto do card = abre tarefa
@@ -6468,6 +6527,7 @@ const Tarefas = {
       <label class="pf-l pf-full">Título<input id="tf-tit" class="pf-in" value="${e(t&&t.titulo)}" placeholder="O que precisa ser feito"></label>
       <label class="pf-l pf-full">Descrição<textarea id="tf-desc" class="pf-in tf-desc-big" rows="8" placeholder="Detalhes (opcional)">${e(t&&t.descricao)}</textarea></label>
       <label class="pf-l">Prazo<input id="tf-prazo" class="pf-in" type="date" value="${e(defDate)}"></label>
+      <label class="pf-l">Status<select id="tf-status" class="pf-in"><option value="todo"${(!t||t.status==='todo')?' selected':''}>A fazer</option><option value="doing"${t&&t.status==='doing'?' selected':''}>Em andamento</option><option value="done"${t&&t.status==='done'?' selected':''}>Concluída</option></select></label>
       <label class="pf-l">Prioridade<select id="tf-prio" class="pf-in">${opP('alta')}${opP('media')}${opP('baixa')}</select></label>
       <label class="pf-l">Etiqueta / Categoria<input id="tf-cat" class="pf-in" list="tf-cats" value="${e(t&&t.categoria)}" placeholder="Ex: Estoque, Ads"></label>
       <label class="pf-l">Recorrência<select id="tf-rec" class="pf-in">${opR('none','Não repete')}${opR('diaria','Diária')}${opR('semanal','Semanal')}${opR('mensal','Mensal')}</select></label>
@@ -6491,7 +6551,8 @@ const Tarefas = {
     const titulo=g('tf-tit').trim();
     if(!titulo){ if(err){err.textContent='Dê um título à tarefa.';err.style.display='block';} return; }
     const checklist=[...document.querySelectorAll('#tf-cl-list .tf-cl-row')].map(r=>({ id:r.dataset.id, txt:r.querySelector('.tf-cl-txt').value.trim(), done:r.querySelector('.tf-cl-done').checked })).filter(c=>c.txt);
-    const data={ titulo, descricao:g('tf-desc').trim(), prazo:g('tf-prazo'), prioridade:g('tf-prio')||'media', categoria:g('tf-cat').trim(), recorrencia:g('tf-rec')||'none', sku:g('tf-sku').split(',').map(x=>x.trim()).filter(Boolean).filter((x,i,a)=>a.indexOf(x)===i).join(', '), checklist };
+    const newStatus=g('tf-status')||'todo';
+    const data={ titulo, descricao:g('tf-desc').trim(), prazo:g('tf-prazo'), status:newStatus, prioridade:g('tf-prio')||'media', categoria:g('tf-cat').trim(), recorrencia:g('tf-rec')||'none', sku:g('tf-sku').split(',').map(x=>x.trim()).filter(Boolean).filter((x,i,a)=>a.indexOf(x)===i).join(', '), checklist };
     let t=id?this.list().find(x=>x.id===id):null;
     if(t){Object.assign(t,data);}
     else{State.tarefas=State.tarefas||[];State.tarefas.push(Object.assign({id:U.uid(),status:'todo',criadoEm:this._today(),concluidoEm:null},data));}
@@ -9256,5 +9317,98 @@ window.addEventListener('DOMContentLoaded',()=>Auth.start());
     <div id="fab-vinculo-lista" style="max-height:360px;overflow-y:auto;border:1px solid #444;border-radius:8px;background:#181818"></div>
   </div>
 </div>
+
+<!-- ===== BOTÃO FLUTUANTE DE NOTAS RÁPIDAS ===== -->
+<button class="notas-fab" id="notas-fab-btn" title="Notas rápidas" onclick="NotasFab.toggle()">
+  <i class="fa-solid fa-note-sticky"></i>
+</button>
+<div class="notas-panel" id="notas-panel">
+  <div class="notas-panel-hdr">
+    <h4><i class="fa-solid fa-note-sticky" style="color:#F26522;margin-right:6px"></i>Notas Rápidas</h4>
+    <button onclick="NotasFab.toggle()" title="Fechar">✕</button>
+  </div>
+  <textarea id="notas-textarea" placeholder="Anote aqui algo rápido… ideias, lembretes, pendências. Salvo automaticamente."></textarea>
+  <div class="notas-panel-foot">
+    <span class="notas-saved" id="notas-saved-info">—</span>
+    <button class="lst-bulk-btn danger" onclick="NotasFab.limpar()" title="Limpar notas"><i class="fa-solid fa-trash"></i> Limpar</button>
+  </div>
+</div>
+
+<script>
+const NotasFab = {
+  _open: false,
+  _timer: null,
+  _KEY: 'gbk-notas-rapidas',
+
+  init(){
+    const ta = document.getElementById('notas-textarea');
+    if(!ta) return;
+    // Carregar do IndexedDB via DB helper, fallback localStorage
+    this._load().then(txt => {
+      ta.value = txt || '';
+      this._info(txt ? 'Carregado' : '');
+    });
+    ta.addEventListener('input', () => {
+      clearTimeout(this._timer);
+      this._info('Salvando…');
+      this._timer = setTimeout(() => this._save(ta.value), 800);
+    });
+  },
+
+  toggle(){
+    this._open = !this._open;
+    const p = document.getElementById('notas-panel');
+    const btn = document.getElementById('notas-fab-btn');
+    if(!p) return;
+    if(this._open){
+      p.classList.add('open');
+      btn.innerHTML = '<i class="fa-solid fa-xmark"></i>';
+      setTimeout(() => { const ta=document.getElementById('notas-textarea'); if(ta) ta.focus(); }, 220);
+    } else {
+      p.classList.remove('open');
+      btn.innerHTML = '<i class="fa-solid fa-note-sticky"></i>';
+    }
+  },
+
+  async _load(){
+    try {
+      if(typeof DB !== 'undefined'){
+        const rec = await DB.get('config', this._KEY);
+        if(rec && rec.data !== undefined) return rec.data;
+      }
+    } catch(e){}
+    try { return localStorage.getItem(this._KEY) || ''; } catch(e){ return ''; }
+  },
+
+  async _save(txt){
+    try {
+      if(typeof DB !== 'undefined') await DB.put('config', {k: this._KEY, data: txt});
+    } catch(e){}
+    try { localStorage.setItem(this._KEY, txt); } catch(e){}
+    this._info('Salvo ' + new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}));
+  },
+
+  limpar(){
+    if(!confirm('Limpar todas as notas?')) return;
+    const ta = document.getElementById('notas-textarea');
+    if(ta){ ta.value=''; ta.focus(); }
+    this._save('');
+    this._info('Notas limpas');
+  },
+
+  _info(msg){
+    const el = document.getElementById('notas-saved-info');
+    if(el) el.textContent = msg;
+  }
+};
+
+// Init após carregamento
+if(document.readyState === 'loading'){
+  document.addEventListener('DOMContentLoaded', () => NotasFab.init());
+} else {
+  setTimeout(() => NotasFab.init(), 500);
+}
+</script>
+
 </body>
 </html>
