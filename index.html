@@ -800,6 +800,9 @@ body.role-viewer .pricing-edit{display:none}
 .rot-add-btn{padding:7px 14px;font-size:12px;color:var(--txt-3);display:flex;align-items:center;gap:6px;cursor:pointer;border-top:1px solid var(--line)}
 .rot-add-btn:hover{color:var(--brand)}
 /* --- Smart sort list --- */
+.lst-chip{padding:4px 12px;border-radius:20px;border:1px solid var(--line);background:transparent;color:var(--txt-2);font-size:12px;font-weight:600;cursor:pointer;transition:.12s}
+.lst-chip:hover{border-color:var(--brand);color:var(--brand)}
+.lst-chip.active{background:#F26522;border-color:#F26522;color:#fff}
 .lst-table{width:100%;border-collapse:collapse}
 .lst-table thead th{font-size:11px;font-weight:700;color:var(--txt-3);text-transform:uppercase;padding:8px 10px;border-bottom:1px solid var(--line);text-align:left}
 .lst-row{cursor:pointer;transition:.1s}
@@ -6288,20 +6291,28 @@ const Tarefas = {
   },
 
   /* ========== VIEW: LISTA ========== */
+  _listaFiltro: 'ativo', // 'ativo' | 'todo' | 'doing' | 'done' | 'todas'
   _renderLista(){
     const PR={alta:'🔴',media:'🟡',baixa:'🟢'};
     const ST={todo:'A fazer',doing:'Em andamento',done:'Concluída'};
+    const lf=this._listaFiltro||'ativo';
     const all=this._sortItems(this._filterList());
-    if(!all.length) return '<div class="panel"><div class="kb-empty" style="padding:30px">Sem tarefas.</div></div>';
-    const hoje=this._today();
-    const rows=all.map(t=>{
+    const filtered=lf==='ativo'?all.filter(t=>t.status!=='done'):lf==='todas'?all:all.filter(t=>t.status===lf);
+    const chips=[
+      {k:'ativo', l:'Abertas'},
+      {k:'todo',  l:'A fazer'},
+      {k:'doing', l:'Em andamento'},
+      {k:'done',  l:'Concluídas'},
+      {k:'todas', l:'Todas'}
+    ].map(c=>`<button class="lst-chip${lf===c.k?' active':''}" onclick="Tarefas._listaFiltro='${c.k}';Tarefas.render()">${c.l}</button>`).join('');
+    if(!filtered.length) return `<div class="panel"><div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:4px">${chips}</div></div><div class="panel"><div class="kb-empty" style="padding:30px">Sem tarefas.</div></div>`;
+    const rows=filtered.map(t=>{
       const pi=this._prazoInfo(t);
-      const prazoCls=pi?pi.cls:'';
-      const prazoTxt=t.prazo?`<span class="kb-prazo ${prazoCls}">${pi?pi.dot+' '+pi.txt:'📅 '+this._fmtDate(t.prazo)}</span>`:'<span class="muted">—</span>';
+      const prazoTxt=t.prazo?`<span class="kb-prazo ${pi?pi.cls:''}">${pi?pi.dot+' '+pi.txt:'📅 '+this._fmtDate(t.prazo)}</span>`:'<span class="muted">—</span>';
       const cat=t.categoria?`<span class="kb-cat">${this._esc(t.categoria)}</span>`:'';
       const chk=(t.checklist&&t.checklist.length)?`<span class="kb-chk"><i class="fa-solid fa-list-check"></i> ${t.checklist.filter(c=>c.done).length}/${t.checklist.length}</span>`:'';
       const rec=(t.recorrencia&&t.recorrencia!=='none')?`<span class="kb-rec"><i class="fa-solid fa-rotate"></i></span>`:'';
-      const stBadge=`<span class="ss-badge${t.status==='doing'?' importante':t.status==='done'?' ':''}"> ${ST[t.status]||t.status}</span>`;
+      const stBadge=`<span class="ss-badge${t.status==='doing'?' importante':''}">${ST[t.status]||t.status}</span>`;
       return `<tr class="lst-row" data-id="${t.id}">
         <td class="lst-prio">${PR[t.prioridade||'media']}</td>
         <td class="lst-titulo">${this._esc(t.titulo)}</td>
@@ -6311,7 +6322,8 @@ const Tarefas = {
         <td class="lst-meta">${chk}${rec}</td>
       </tr>`;
     }).join('');
-    return `<div class="panel" style="padding:0 0 4px 0">
+    return `<div class="panel" style="padding-bottom:4px"><div style="display:flex;gap:6px;flex-wrap:wrap">${chips}</div></div>
+      <div class="panel" style="padding:0 0 4px 0">
       <table class="simple-table lst-table">
         <thead><tr>
           <th style="width:30px"></th>
