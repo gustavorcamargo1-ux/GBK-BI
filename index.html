@@ -2773,7 +2773,8 @@ const Importer = {
           if(rec.situacao==='ok'&&rec.marketplace==='TikTok Shop'&&(rec.valorBruto*rec.qtd)<0) rec.situacao='devolvida';
           // skipStatus: marcar como cancelada (entra no BD mas fora do faturamento)
           if(rec.situacao==='ok'&&skipStatus){
-            const sv=U.norm((''+( r[skipStatus.col]??'')).trim());
+            const _sIdx=_hidx[U.norm(skipStatus.col)];
+            const sv=U.norm((''+( _sIdx!=null?r[_sIdx]:'')).trim());
             if(skipStatus.values.has(sv)) rec.situacao='cancelada';
           }
           // ── APLICAR RATEIO DE PACOTE (ML): se este pedido é filho, substituir valores zerados
