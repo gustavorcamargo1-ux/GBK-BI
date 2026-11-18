@@ -800,6 +800,14 @@ body.role-viewer .pricing-edit{display:none}
 .rot-add-btn{padding:7px 14px;font-size:12px;color:var(--txt-3);display:flex;align-items:center;gap:6px;cursor:pointer;border-top:1px solid var(--line)}
 .rot-add-btn:hover{color:var(--brand)}
 /* --- Smart sort list --- */
+.lst-table{width:100%;border-collapse:collapse}
+.lst-table thead th{font-size:11px;font-weight:700;color:var(--txt-3);text-transform:uppercase;padding:8px 10px;border-bottom:1px solid var(--line);text-align:left}
+.lst-row{cursor:pointer;transition:.1s}
+.lst-row:hover td{background:var(--hover)}
+.lst-row td{padding:7px 10px;border-bottom:1px solid var(--line);font-size:13px;vertical-align:middle}
+.lst-prio{font-size:14px;text-align:center}
+.lst-titulo{font-weight:500;color:var(--txt-1)}
+.lst-meta{display:flex;gap:6px;align-items:center}
 .ss-wrap{margin-top:4px}
 .ss-list{display:flex;flex-direction:column;gap:8px}
 .ss-item{display:flex;align-items:center;gap:12px;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:11px 14px;cursor:pointer;transition:.12s}
@@ -1032,7 +1040,7 @@ textarea#tf-desc{min-height:170px !important;height:170px;max-height:50vh;resize
       <button class="nav-item" data-view="devol"><i class="fa-solid fa-rotate-left"></i><span>Devoluções</span></button>
       <button class="nav-item needs-owner" data-view="precificacao"><i class="fa-solid fa-box-open"></i><span>Produtos</span></button>
       <button class="nav-item" data-view="viab"><i class="fa-solid fa-magnifying-glass-dollar"></i><span>Viabilidade</span></button>
-      <button class="nav-item" data-view="tarefas"><i class="fa-solid fa-clipboard-check"></i><span>Tarefas</span><em id="tarefa-badge" class="badge hidden">0</em></button>
+      <button class="nav-item" data-view="tarefas"><i class="fa-solid fa-clipboard-check"></i><span>Agenda e Tarefas</span><em id="tarefa-badge" class="badge hidden">0</em></button>
       <button class="nav-item" data-view="caixa"><i class="fa-solid fa-vault"></i><span>Caixa & Contas</span></button>
       <button class="nav-item" data-view="plano"><i class="fa-solid fa-compass"></i><span>Plano de Crescimento</span></button>
       <button class="nav-item" data-view="dados"><i class="fa-solid fa-database"></i><span>Dados & Importação</span></button>
@@ -4047,7 +4055,7 @@ const UI = {
       precificacao:['Produtos','Catálogo, precificação por canal e histórico de vendas'],
       caixa:['Caixa & Contas','Saldos em conta, a liberar, estoque e retiradas'],
       mads:['Mercado Ads','Otimização de anúncios: ROAS, ACOS e orçamento por produto'],
-      tarefas:['Tarefas','Quadro de tarefas com prazos, prioridades, recorrência e checklist'],
+      tarefas:['Agenda e Tarefas','Quadro de tarefas com prazos, prioridades, recorrência e checklist'],
       viab:['Viabilidade','Análise de viabilidade de produtos novos: margem e veredito por canal'],
       plano:['Plano de Crescimento','Documento estratégico detalhado por fase: o quê, quem, como, quando e por quê'],
       devol:['Devoluções','Vendas devolvidas e canceladas — fora do faturamento'],
@@ -5998,11 +6006,12 @@ const Tarefas = {
     const el=document.getElementById('view-tarefas-body'); if(!el) return;
     this.updateBadge();
     const views=[
-      ['kanban','Quadro','fa-table-columns'],
-      ['calendar','Calendário','fa-calendar'],
+      ['kanban','Kanban','fa-table-columns'],
+      ['lista','Lista','fa-list'],
       ['eisenhower','Matriz','fa-border-all'],
-      ['rotina','Rotina Diária','fa-rotate'],
-      ['smartsort','Prioridades','fa-arrow-down-short-wide']
+      ['smartsort','Prioridades','fa-arrow-down-short-wide'],
+      ['calendar','Calendário','fa-calendar'],
+      ['rotina','Rotina Diária','fa-rotate']
     ];
     const tabsHtml=views.map(([v,l,ic])=>{
       const isActive=this._view===v;
@@ -6010,7 +6019,7 @@ const Tarefas = {
       return `<button class="tf-view-btn${isActive?' active':''}"${style} onclick="Tarefas._setView('${v}')"><i class="fa-solid ${ic}"></i> ${l}</button>`;
     }).join('');
     const f=this._filter, e=s=>this._esc(s);
-    const head=`<div class="panel"><div class="panel-head"><h3><i class="fa-solid fa-calendar-days"></i> Tarefas & Agenda</h3>
+    const head=`<div class="panel"><div class="panel-head"><h3><i class="fa-solid fa-calendar-days"></i> Agenda e Tarefas</h3>
       <div class="kb-head-btns"><button id="tarefa-add" class="primary-btn sm"><i class="fa-solid fa-plus"></i> Nova tarefa</button></div></div>
       <div class="tf-views">${tabsHtml}</div>
       <div class="pricing-toolbar" style="margin-top:8px"><input type="text" id="tarefa-q" class="pricing-search" placeholder="Buscar tarefa…" value="${e(f)}"></div></div>`;
@@ -6020,6 +6029,7 @@ const Tarefas = {
     else if(this._view==='eisenhower') body=this._renderEisenhower();
     else if(this._view==='rotina') body=this._renderRotina();
     else if(this._view==='smartsort') body=this._renderSmartSort();
+    else if(this._view==='lista') body=this._renderLista();
     el.innerHTML=head+this._statsBar()+body;
     this._wireHead(el);
     if(this._view==='kanban') this._wireKanban(el);
@@ -6027,6 +6037,7 @@ const Tarefas = {
     else if(this._view==='rotina') this._wireRotina(el);
     else if(this._view==='eisenhower') this._wireEisenhower(el);
     else if(this._view==='smartsort') this._wireClickCards(el);
+    else if(this._view==='lista') this._wireClickCards(el);
     /* Force active tab highlight after DOM is written */
     const _v=Tarefas._view;
     el.querySelectorAll('.tf-view-btn').forEach(btn=>{
@@ -6274,6 +6285,44 @@ const Tarefas = {
       </div>`;
     }).join('');
     return `<div class="panel"><p class="muted" style="margin-bottom:12px"><i class="fa-solid fa-circle-info"></i> Ordenado automaticamente por prioridade, prazo e status. Itens com maior pontuação exigem atenção imediata.</p></div><div class="ss-wrap"><div class="ss-list">${rows}</div></div>`;
+  },
+
+  /* ========== VIEW: LISTA ========== */
+  _renderLista(){
+    const PR={alta:'🔴',media:'🟡',baixa:'🟢'};
+    const ST={todo:'A fazer',doing:'Em andamento',done:'Concluída'};
+    const all=this._sortItems(this._filterList());
+    if(!all.length) return '<div class="panel"><div class="kb-empty" style="padding:30px">Sem tarefas.</div></div>';
+    const hoje=this._today();
+    const rows=all.map(t=>{
+      const pi=this._prazoInfo(t);
+      const prazoCls=pi?pi.cls:'';
+      const prazoTxt=t.prazo?`<span class="kb-prazo ${prazoCls}">${pi?pi.dot+' '+pi.txt:'📅 '+this._fmtDate(t.prazo)}</span>`:'<span class="muted">—</span>';
+      const cat=t.categoria?`<span class="kb-cat">${this._esc(t.categoria)}</span>`:'';
+      const chk=(t.checklist&&t.checklist.length)?`<span class="kb-chk"><i class="fa-solid fa-list-check"></i> ${t.checklist.filter(c=>c.done).length}/${t.checklist.length}</span>`:'';
+      const rec=(t.recorrencia&&t.recorrencia!=='none')?`<span class="kb-rec"><i class="fa-solid fa-rotate"></i></span>`:'';
+      const stBadge=`<span class="ss-badge${t.status==='doing'?' importante':t.status==='done'?' ':''}"> ${ST[t.status]||t.status}</span>`;
+      return `<tr class="lst-row" data-id="${t.id}">
+        <td class="lst-prio">${PR[t.prioridade||'media']}</td>
+        <td class="lst-titulo">${this._esc(t.titulo)}</td>
+        <td class="lst-status">${stBadge}</td>
+        <td class="lst-cat">${cat}</td>
+        <td class="lst-prazo">${prazoTxt}</td>
+        <td class="lst-meta">${chk}${rec}</td>
+      </tr>`;
+    }).join('');
+    return `<div class="panel" style="padding:0 0 4px 0">
+      <table class="simple-table lst-table">
+        <thead><tr>
+          <th style="width:30px"></th>
+          <th>Tarefa</th>
+          <th style="width:130px">Status</th>
+          <th style="width:130px">Categoria</th>
+          <th style="width:140px">Prazo</th>
+          <th style="width:80px"></th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table></div>`;
   },
 
   _setView(v){ Tarefas._view=v; Tarefas.render(); },
