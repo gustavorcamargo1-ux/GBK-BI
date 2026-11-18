@@ -2771,6 +2771,11 @@ const Importer = {
           }
           rec.situacao=Importer._situacao(rec.marketplace,r,_hidx);
           if(rec.situacao==='ok'&&rec.marketplace==='TikTok Shop'&&(rec.valorBruto*rec.qtd)<0) rec.situacao='devolvida';
+          // skipStatus: marcar como cancelada (entra no BD mas fora do faturamento)
+          if(rec.situacao==='ok'&&skipStatus){
+            const sv=U.norm((''+( r[skipStatus.col]??'')).trim());
+            if(skipStatus.values.has(sv)) rec.situacao='cancelada';
+          }
           // ── APLICAR RATEIO DE PACOTE (ML): se este pedido é filho, substituir valores zerados
           if(_mlPkgMap.size&&_mlFilhos.has(rec.pedido)){
             const _rat=_mlPkgMap.get(rec.pedido);
@@ -2939,13 +2944,15 @@ const Importer = {
         UI.toast('warn','0 registros válidos','Verifique o mapeamento das colunas — nenhuma linha foi reconhecida.');
       }else{
         const _dv=(type==='vendas')?records.filter(v=>v.situacao&&v.situacao!=='ok').length:0;
+        const _ok=records.length-_dv;
         let _res=IMPORT_TITLES[type];
         if(type==='vendas'){
           const _dts=records.map(v=>v.data).filter(Boolean).sort();
           _res+=` · loja ${loja}`;
           if(_dts.length) _res+=` · ${U.dataBR(_dts[0])} a ${U.dataBR(_dts[_dts.length-1])}`;
         }
-        UI.toast('ok',`${records.length} registros importados`, _res+(_dv?` · ${_dv} devolvidas/canceladas marcadas (fora do faturamento)`:''));
+        const _dvMsg=_dv?` · ${_dv} canceladas/devolvidas (fora do faturamento)`:'';
+        UI.toast('ok',`${_ok} pedidos ativos importados${_dv?` + ${_dv} cancelados`:''}`, _res+_dvMsg);
         Importer._lastSkipped=0;
         // diagnóstico: confirma o que está no banco
         UI.toast('info','Base atual',`${State.raw.vendas.length} vendas · ${State.raw.erp.length} custos ERP · ${State.raw.ads.length} ADS · ${State.raw.impostos.length} impostos`);
