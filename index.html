@@ -803,12 +803,13 @@ body.role-viewer .pricing-edit{display:none}
 .lst-chip{padding:4px 14px;border-radius:20px;border:1px solid var(--line);background:transparent;color:var(--txt-2);font-size:12px;font-weight:600;cursor:pointer;transition:.12s}
 .lst-chip:hover{border-color:var(--brand);color:var(--brand)}
 .lst-chip.active{background:#F26522;border-color:#F26522;color:#fff}
-.lst-table{width:100%;border-collapse:collapse;table-layout:fixed}
-.lst-table thead th{font-size:11px;font-weight:700;color:var(--txt-3);text-transform:uppercase;padding:10px 12px;border-bottom:2px solid var(--line);text-align:left}
+.lst-table{width:100%;border-collapse:collapse;table-layout:auto}
+.lst-table thead th{font-size:11px;font-weight:700;color:var(--txt-3);text-transform:uppercase;padding:10px 12px;border-bottom:2px solid var(--line);text-align:left;white-space:nowrap}
 .lst-row{cursor:pointer;transition:.1s}
 .lst-row:hover td{background:var(--hover)}
 .lst-row.lst-sel td{background:rgba(242,101,34,.07)}
-.lst-row td{padding:10px 12px;border-bottom:1px solid var(--line);font-size:13px;vertical-align:middle}
+.lst-row td{padding:9px 12px;border-bottom:1px solid var(--line);font-size:13px;vertical-align:middle}
+.lst-row td:first-child,.lst-row td:nth-child(2){white-space:nowrap}
 .lst-chk{width:36px!important;text-align:center}
 .lst-chk input[type=checkbox]{width:15px;height:15px;cursor:pointer;accent-color:#F26522}
 .lst-prio{font-size:16px;text-align:center;width:40px!important}
@@ -4314,17 +4315,19 @@ const Pricing = {
   // taxa média ponderada por receita bruta, por SKU + canal
   _buildSkuStats(){
     if(this.__skuStats) return this.__skuStats;
-    const map={}; // map[sku][marketplace] = {rb, tx, fr, n}
+    const map={}; // map[sku][marketplace] = {rb,tx,fr,n,lucro,lastData,lastPreco,qtd}
     (State.enriched||[]).forEach(r=>{
       const s=r.sku, m=r.marketplace;
       if(!s||!m) return;
       if(!map[s]) map[s]={};
-      if(!map[s][m]) map[s][m]={rb:0,tx:0,fr:0,n:0};
+      if(!map[s][m]) map[s][m]={rb:0,tx:0,fr:0,n:0,lucro:0,qtd:0,lastData:'',lastPreco:0};
+      const d=map[s][m];
       const rb=r.receitaBruta||0;
-      map[s][m].rb+=rb;
-      map[s][m].tx+=r.taxas||0;
-      map[s][m].fr+=r.frete||0;
-      map[s][m].n++;
+      d.rb+=rb; d.tx+=r.taxas||0; d.fr+=r.frete||0; d.n++; d.qtd+=r.qtd||0;
+      d.lucro+=(r.lucroLiquido||0);
+      // última venda: data mais recente
+      const dt=(r.data||'').slice(0,10);
+      if(dt && dt>d.lastData){ d.lastData=dt; d.lastPreco=r.valorBruto||0; }
     });
     this.__skuStats=map;
     return map;
@@ -4333,7 +4336,10 @@ const Pricing = {
     const map=this._buildSkuStats();
     const d=(map[sku]||{})[m];
     if(!d||!d.rb) return null;
-    return { feePct:d.tx/d.rb*100, freteMed:d.fr/d.n, n:d.n, rb:d.rb };
+    const margemReal=d.rb>0?d.lucro/d.rb*100:0;
+    return { feePct:d.tx/d.rb*100, freteMed:d.fr/d.n, n:d.n, rb:d.rb,
+             lucro:d.lucro, qtd:d.qtd, lastData:d.lastData, lastPreco:d.lastPreco,
+             margemReal };
   },
   productList(){
     return (State.raw.erp||[]).filter(e=>e.sku).map(e=>{const sku=''+e.sku;const meta=(State.prodmeta&&State.prodmeta[sku])||{};return {sku,produto:e.produto||'',custo:e.custo||0,pv:e.precoVenda||0,marca:e.marca||meta.marca||'',categoria:e.categoria||'',ean:e.ean||meta.ean||''};});
@@ -4477,27 +4483,40 @@ const Pricing = {
       const cells=this.mkts().map(m=>{
         const cfg=this.cfg(m), sug=p.custo>0?this.priceForMargin(cfg,p.custo,t):null, cur=this._price(p.sku,m), dsc=this._desc(p.sku,m);
         const val=cur!=null?cur:(p.pv>0?p.pv:(sug!=null?sug:''));
-        const r=(val!==''&&p.custo>0)?this.calc(cfg,p.custo,+val,this._ov(p.sku,m)):null;
-        const mc=r?(r.margemPct>=alvo?'pos':r.margemPct>=0?'warn-t':'neg'):'';
-        // taxa real média ponderada por SKU + canal
+        // stats reais do histórico de vendas (SKU + canal)
         const rs=this._skuStat(p.sku,m);
-        let realBlock='';
-        if(rs&&p.custo>0&&val!==''){
-          // margem real: usa taxa real média em vez da taxa configurada
-          const cfgReal=Object.assign({},cfg,{fee:rs.feePct,frete:rs.freteMed});
-          const rReal=this.calc(cfgReal,p.custo,+val,this._ov(p.sku,m));
-          const mcReal=rReal.margemPct>=alvo?'pos':rReal.margemPct>=0?'warn-t':'neg';
-          realBlock=`<div class="ptm-real" style="margin-top:3px;font-size:10px;display:flex;gap:4px;justify-content:flex-end;align-items:center">
-            <span style="color:var(--txt-3)">real:</span>
-            <span class="ptm ${mcReal}" style="font-size:11px;padding:1px 5px">${U.pct(rReal.margemPct)} <span style="font-size:9px;opacity:.7">●</span></span>
-            <span style="color:var(--txt-3);font-size:10px" title="${rs.n} venda(s) analisada(s)">taxa ${U.pct(rs.feePct)} · ${rs.n}v</span>
-          </div>`;
+        // ── LINHA 1: preço editável ──
+        const inputEl=`<input class="ptest" type="number" step="0.01" data-sku="${p.sku}" data-m="${m}" value="${val!==''?(+val).toFixed(2):''}" placeholder="${sug!=null?sug.toFixed(2):'sem preço'}">`;
+        // ── LINHA 2: margem + lucro (real se tem histórico, simulada se não tem) ──
+        let margemLine='<span style="color:var(--txt-3);font-size:11px">—</span>';
+        if(rs && rs.n>0){
+          // usa margem real do histórico (já calculada com taxas/custos reais)
+          const mc2=rs.margemReal>=alvo?'pos':rs.margemReal>=0?'warn-t':'neg';
+          const lucroFmt=rs.lucro>=0?'+'+U.brl(rs.lucro):U.brl(rs.lucro);
+          margemLine=`<span class="ptm ${mc2}" style="font-size:12px;font-weight:700">${U.pct(rs.margemReal)}</span><span style="color:var(--txt-3);font-size:11px;margin-left:4px">${lucroFmt}</span>`;
+        } else if(val!==''&&p.custo>0){
+          // sem histórico: usa simulação com taxas configuradas
+          const r=this.calc(cfg,p.custo,+val,this._ov(p.sku,m));
+          const mc2=r.margemPct>=alvo?'pos':r.margemPct>=0?'warn-t':'neg';
+          margemLine=`<span class="ptm ${mc2}" style="font-size:12px;font-weight:700">${U.pct(r.margemPct)}</span><span style="color:var(--txt-3);font-size:11px;margin-left:4px">${U.brl(r.lucro||0)}</span><span style="color:var(--txt-3);font-size:10px;margin-left:3px">(sim)</span>`;
+        }
+        // ── LINHA 3: histórico de vendas ou sugestão ──
+        let histLine='';
+        if(rs && rs.n>0){
+          // formatar data curta da última venda
+          const dtParts=(rs.lastData||'').split('-');
+          const dtFmt=dtParts.length===3?`${dtParts[2]}/${dtParts[1]}`:'';
+          const lastStr=rs.lastPreco>0?`${U.brl(rs.lastPreco)} · `:'';
+          histLine=`<div style="font-size:10px;color:var(--txt-3);margin-top:3px;text-align:right">${lastStr}${rs.qtd}un · ${rs.n}v${dtFmt?' · '+dtFmt:''}</div>`;
+        } else {
+          // sem venda: mostrar sugestão de preço
+          const sugTxt=sug!=null?`sug ${U.brl(sug)}`:'sem venda';
+          histLine=`<div style="font-size:10px;color:var(--txt-3);margin-top:3px;text-align:right;font-style:italic">${sugTxt}</div>`;
         }
         return `<td class="num pcell mk-c ${this._mkClass(m)}" data-label="${m}">
-          <input class="ptest" type="number" step="0.01" data-sku="${p.sku}" data-m="${m}" value="${val!==''?(+val).toFixed(2):''}" placeholder="${sug!=null?sug.toFixed(2):''}">
-          <div class="ptm ${mc}" data-mt="${p.sku}|${m}" style="font-size:11px;color:var(--txt-3);margin-top:1px">${r?'<span style=\'font-size:9px;opacity:.6\'>sim:</span> '+U.pct(r.margemPct):'—'}</div>
-          ${realBlock}
-          <div class="psug" data-ds="${p.sku}|${m}">${(dsc!=null&&dsc>0)?`<span class="pdesc">-${U.pct(dsc)}</span> · `:''}sug ${sug!=null?U.brl(sug):'—'}</div></td>`;
+          ${inputEl}
+          <div data-mt="${p.sku}|${m}" style="margin-top:4px;display:flex;align-items:center;justify-content:flex-end;flex-wrap:wrap;gap:2px">${margemLine}</div>
+          ${histLine}</td>`;
       }).join('');
       return `<tr><td style="width:32px"><input type="checkbox" class="pricing-row-chk" data-sku="${p.sku}"></td><td class="mono" data-label="SKU"><span class="pricing-skuv">${p.sku}</span> <button type="button" class="pricing-edit" data-sku="${p.sku}" title="Editar cadastro"><i class="fa-solid fa-pen"></i></button></td><td class="mono small" data-label="EAN">${p.ean||'—'}</td><td class="col-prod pricing-openprod" data-label="Produto" data-sku="${p.sku}" title="Ver raio-X do produto (histórico)">${p.produto||''}${this._badges(p,_vend,alvo)}</td><td class="small" data-label="Marca">${p.marca||'—'}</td><td class="num col-custo" data-label="Custo">${U.brl(p.custo)}</td>${cells}</tr>`;
     }).join('');
@@ -5066,6 +5085,7 @@ const Pricing = {
       this._modal(nome, `<p class="muted">Ainda não há vendas registradas para este produto.</p><button id="raiox-calc" class="primary-btn" style="width:100%;margin-top:10px"><i class="fa-solid fa-calculator"></i> Abrir na calculadora de preço</button>`);
       const b=document.getElementById('raiox-calc'); if(b) b.onclick=closeAndCalc; return;
     }
+    const alvo=this.target();
     let unid=0,fat=0,lucro=0;
     sales.forEach(v=>{ unid+=v.qtd||0; fat+=v.receitaBruta||0; lucro+=v.lucroLiquido||0; });
     const margem=fat>0?lucro/fat*100:0, precoMedio=unid>0?fat/unid:0, custo=(p&&p.custo)||0;
@@ -5075,25 +5095,75 @@ const Pricing = {
     const months=Object.keys(byM).filter(k=>k!=='sd').sort().slice(-12);
     const maxR=Math.max(1,...months.map(m=>byM[m].r));
     const chart=months.length?`<div class="rx-chart">${months.map(m=>{ const h=Math.max(3,Math.round(byM[m].r/maxR*100)); return `<div class="rx-bar-wrap" title="${lbl(m)}: ${U.brl(byM[m].r)} · ${byM[m].q} un · lucro ${U.brl(byM[m].l)}"><div class="rx-bar ${byM[m].l>=0?'':'rx-bar-neg'}" style="height:${h}%"></div><span class="rx-bar-lbl">${lbl(m)}</span></div>`; }).join('')}</div>`:'<p class="muted">Sem histórico mensal.</p>';
-    const byK={}; sales.forEach(v=>{ const m=v.marketplace||'—'; (byK[m]=byK[m]||{q:0,r:0,l:0}); byK[m].q+=v.qtd||0; byK[m].r+=v.receitaBruta||0; byK[m].l+=v.lucroLiquido||0; });
-    const mktRows=Object.entries(byK).sort((a,b)=>b[1].r-a[1].r).map(([m,o])=>`<tr><td>${U.mktBadge(m)}</td><td class="num">${o.q}</td><td class="num">${U.brl(o.r)}</td><td class="num ${o.l>=0?'pos':'neg'}">${U.brl(o.l)}</td></tr>`).join('');
-    const ult=sales.slice().sort((a,b)=>(''+(b.data||'')).localeCompare(''+(a.data||''))).slice(0,15).map(v=>`<tr><td>${v.data||'—'}</td><td>${U.mktBadge(v.marketplace,v.loja)}</td><td class="num">${v.qtd}</td><td class="num">${U.brl(v.receitaBruta)}</td><td class="num ${v.lucroLiquido>=0?'pos':'neg'}">${U.brl(v.lucroLiquido)}</td></tr>`).join('');
+    // ── Por marketplace: enriquecido com preço médio, último preço, margem, última venda ──
+    const byK={}; sales.forEach(v=>{
+      const m=v.marketplace||'—';
+      if(!byK[m]) byK[m]={q:0,r:0,l:0,n:0,lastData:'',lastPreco:0,taxas:0};
+      byK[m].q+=v.qtd||0; byK[m].r+=v.receitaBruta||0; byK[m].l+=v.lucroLiquido||0;
+      byK[m].n++; byK[m].taxas+=v.taxas||0;
+      const dt=(v.data||'').slice(0,10);
+      if(dt>byK[m].lastData){ byK[m].lastData=dt; byK[m].lastPreco=v.valorBruto||0; }
+    });
+    const mktRows=Object.entries(byK).sort((a,b)=>b[1].r-a[1].r).map(([m,o])=>{
+      const mg=o.r>0?o.l/o.r*100:0;
+      const mc=mg>=alvo?'pos':mg>=0?'warn-t':'neg';
+      const precoMed=o.q>0?o.r/o.q:0;
+      const dtParts=(o.lastData||'').split('-');
+      const dtFmt=dtParts.length===3?`${dtParts[2]}/${dtParts[1]}/${dtParts[0].slice(2)}`:'—';
+      const taxaPct=o.r>0?o.taxas/o.r*100:0;
+      return `<tr>
+        <td>${U.mktBadge(m)}</td>
+        <td class="num">${o.q} un · ${o.n}v</td>
+        <td class="num">${U.brl(precoMed)}</td>
+        <td class="num">${o.lastPreco>0?U.brl(o.lastPreco):'—'}<br><span style="font-size:10px;color:var(--txt-3)">${dtFmt}</span></td>
+        <td class="num">${U.brl(o.r)}</td>
+        <td class="num ${o.l>=0?'pos':'neg'}">${U.brl(o.l)}</td>
+        <td class="num ${mc}" style="font-weight:700">${U.pct(mg)}</td>
+        <td class="num" style="font-size:11px;color:var(--txt-3)">${U.pct(taxaPct)}</td>
+      </tr>`;
+    }).join('');
+    const ult=sales.slice().sort((a,b)=>(''+(b.data||'')).localeCompare(''+(a.data||''))).slice(0,20).map(v=>`<tr>
+      <td>${v.data||'—'}</td>
+      <td>${U.mktBadge(v.marketplace,v.loja)}</td>
+      <td class="num">${v.qtd}</td>
+      <td class="num">${U.brl(v.valorBruto||0)}</td>
+      <td class="num">${U.brl(v.receitaBruta)}</td>
+      <td class="num">${U.brl(v.taxas||0)}</td>
+      <td class="num ${v.lucroLiquido>=0?'pos':'neg'}">${U.brl(v.lucroLiquido)}</td>
+      <td class="num ${v.margem>=0?'pos':'neg'}">${U.pct(v.margem||0)}</td>
+    </tr>`).join('');
     const dv=devol.filter(v=>v.situacao==='devolvida'), cn=devol.filter(v=>v.situacao==='cancelada');
     const dvVal=devol.reduce((s,v)=>s+Math.abs((v.valorBruto||0)*(v.qtd||1)),0);
-    const taxaDev=unid>0?(dv.reduce((s,v)=>s+(v.qtd||1),0)/(unid+dv.reduce((s,v)=>s+(v.qtd||1),0))*100):0;
-    const devBlock=devol.length?`<div class="rx-sec"><h4>Devoluções e cancelamentos</h4><div class="rx-kpis"><div class="rx-kpi"><label>Devolvidas</label><b>${dv.length}</b></div><div class="rx-kpi"><label>Canceladas</label><b>${cn.length}</b></div><div class="rx-kpi"><label>Valor</label><b>${U.brl(dvVal)}</b></div></div></div>`:'<div class="rx-sec"><h4>Devoluções</h4><p class="muted">Nenhuma devolução ou cancelamento deste produto. 👍</p></div>';
-    const html=`<div class="rx-kpis">
-        <div class="rx-kpi"><label>Unidades</label><b>${U.num(unid)}</b></div>
-        <div class="rx-kpi"><label>Faturamento</label><b>${U.brl(fat)}</b></div>
-        <div class="rx-kpi"><label>Lucro real</label><b class="${lucro>=0?'pos':'neg'}">${U.brl(lucro)}</b></div>
-        <div class="rx-kpi"><label>Margem</label><b class="${margem>=0?'pos':'neg'}">${U.pct(margem)}</b></div>
+    const devBlock=devol.length?`<div class="rx-sec"><h4><i class="fa-solid fa-rotate-left" style="color:#E5484D;margin-right:6px"></i>Devoluções e cancelamentos</h4><div class="rx-kpis"><div class="rx-kpi"><label>Devolvidas</label><b class="neg">${dv.length}</b></div><div class="rx-kpi"><label>Canceladas</label><b class="warn-t">${cn.length}</b></div><div class="rx-kpi"><label>Valor impactado</label><b>${U.brl(dvVal)}</b></div></div></div>`:'<div class="rx-sec" style="padding:10px 0"><p class="muted"><i class="fa-solid fa-circle-check" style="color:var(--ok,#22c55e);margin-right:5px"></i>Nenhuma devolução ou cancelamento registrado.</p></div>';
+    const html=`
+      <div class="rx-kpis">
+        <div class="rx-kpi"><label>Unidades vendidas</label><b>${U.num(unid)}</b></div>
+        <div class="rx-kpi"><label>Faturamento total</label><b>${U.brl(fat)}</b></div>
+        <div class="rx-kpi"><label>Lucro líquido</label><b class="${lucro>=0?'pos':'neg'}">${U.brl(lucro)}</b></div>
+        <div class="rx-kpi"><label>Margem geral</label><b class="${margem>=0?'pos':'neg'}">${U.pct(margem)}</b></div>
         <div class="rx-kpi"><label>Preço médio</label><b>${U.brl(precoMedio)}</b></div>
-        <div class="rx-kpi"><label>Custo atual</label><b>${U.brl(custo)}</b></div>
+        <div class="rx-kpi"><label>Custo atual (ERP)</label><b>${U.brl(custo)}</b></div>
       </div>
-      <div class="rx-sec"><h4>Tendência de faturamento (por mês)</h4>${chart}</div>
-      <div class="rx-sec"><h4>Por marketplace</h4><div class="table-wrap"><table class="simple-table"><tr><th>Canal</th><th class="num">Un</th><th class="num">Faturamento</th><th class="num">Lucro</th></tr>${mktRows}</table></div></div>
+      <div class="rx-sec"><h4><i class="fa-solid fa-chart-column" style="color:var(--brand);margin-right:6px"></i>Faturamento por mês</h4>${chart}</div>
+      <div class="rx-sec">
+        <h4><i class="fa-solid fa-store" style="color:var(--brand);margin-right:6px"></i>Desempenho por canal</h4>
+        <div class="table-wrap">
+          <table class="simple-table">
+            <tr><th>Canal</th><th class="num">Qtd · Vendas</th><th class="num">Preço médio</th><th class="num">Último preço</th><th class="num">Faturamento</th><th class="num">Lucro</th><th class="num">Margem</th><th class="num">Taxa</th></tr>
+            ${mktRows}
+          </table>
+        </div>
+      </div>
       ${devBlock}
-      <div class="rx-sec"><h4>Últimas vendas</h4><div class="table-wrap"><table class="simple-table"><tr><th>Data</th><th>Canal</th><th class="num">Qtd</th><th class="num">Receita</th><th class="num">Lucro</th></tr>${ult}</table></div></div>
+      <div class="rx-sec">
+        <h4><i class="fa-solid fa-clock-rotate-left" style="color:var(--brand);margin-right:6px"></i>Últimas 20 vendas</h4>
+        <div class="table-wrap">
+          <table class="simple-table">
+            <tr><th>Data</th><th>Canal</th><th class="num">Qtd</th><th class="num">Preço unit.</th><th class="num">Receita</th><th class="num">Taxas</th><th class="num">Lucro</th><th class="num">Margem</th></tr>
+            ${ult}
+          </table>
+        </div>
+      </div>
       <button id="raiox-calc" class="primary-btn" style="width:100%;margin-top:12px"><i class="fa-solid fa-calculator"></i> Abrir na calculadora de preço</button>`;
     this._modal(nome, html);
     const b=document.getElementById('raiox-calc'); if(b) b.onclick=closeAndCalc;
@@ -5142,26 +5212,26 @@ const Pricing = {
     if(inp.value===''||!(v>0)){ delete w[sku][m]; } else { w[sku][m]=+(((pv-v)/pv)*100).toFixed(4); }
     this._dirty=true; this._toggleBanner();
     const alvo=this.target();
-    // atualizar margem simulada
+    // atualizar bloco de margem+lucro (data-mt)
     const cell=tb.querySelector(`[data-mt="${sku}|${m}"]`);
     if(cell){
-      if(inp.value===''||!(v>0)){ cell.textContent='—'; cell.className='ptm'; }
-      else{ const r=this.calc(this.cfg(m),custo,v,this._ov(sku,m)); cell.innerHTML=`<span style='font-size:9px;opacity:.6'>sim:</span> ${U.pct(r.margemPct)}`; cell.className='ptm '+(r.margemPct>=alvo?'pos':r.margemPct>=0?'warn-t':'neg'); }
+      const rs=this._skuStat(sku,m);
+      if(inp.value===''||!(v>0)){
+        cell.innerHTML='<span style="color:var(--txt-3);font-size:11px">—</span>';
+      } else if(rs && rs.n>0){
+        // recalcular margem real com novo preço (mantém taxas reais do histórico)
+        const cfgReal=Object.assign({},this.cfg(m),{fee:rs.feePct,frete:rs.freteMed});
+        const rReal=this.calc(cfgReal,custo,v,this._ov(sku,m));
+        const mc2=rReal.margemPct>=alvo?'pos':rReal.margemPct>=0?'warn-t':'neg';
+        const lucroFmt=rReal.lucro>=0?'+'+U.brl(rReal.lucro):U.brl(rReal.lucro);
+        cell.innerHTML=`<span class="ptm ${mc2}" style="font-size:12px;font-weight:700">${U.pct(rReal.margemPct)}</span><span style="color:var(--txt-3);font-size:11px;margin-left:4px">${lucroFmt}</span>`;
+      } else {
+        // sem histórico: simulação com taxas configuradas
+        const r=this.calc(this.cfg(m),custo,v,this._ov(sku,m));
+        const mc2=r.margemPct>=alvo?'pos':r.margemPct>=0?'warn-t':'neg';
+        cell.innerHTML=`<span class="ptm ${mc2}" style="font-size:12px;font-weight:700">${U.pct(r.margemPct)}</span><span style="color:var(--txt-3);font-size:11px;margin-left:4px">${U.brl(r.lucro||0)}</span><span style="color:var(--txt-3);font-size:10px;margin-left:3px">(sim)</span>`;
+      }
     }
-    // atualizar margem real
-    const rs=this._skuStat(sku,m);
-    const realWrap=inp.closest('td')&&inp.closest('td').querySelector('.ptm-real');
-    if(realWrap&&rs&&custo>0&&v>0){
-      const cfgReal=Object.assign({},this.cfg(m),{fee:rs.feePct,frete:rs.freteMed});
-      const rReal=this.calc(cfgReal,custo,v,this._ov(sku,m));
-      const mcReal=rReal.margemPct>=alvo?'pos':rReal.margemPct>=0?'warn-t':'neg';
-      realWrap.innerHTML=`<span style="color:var(--txt-3)">real:</span>
-        <span class="ptm ${mcReal}" style="font-size:11px;padding:1px 5px">${U.pct(rReal.margemPct)} <span style="font-size:9px;opacity:.7">●</span></span>
-        <span style="color:var(--txt-3);font-size:10px" title="${rs.n} venda(s) analisada(s)">taxa ${U.pct(rs.feePct)} · ${rs.n}v</span>`;
-    }
-    const ds=tb.querySelector(`[data-ds="${sku}|${m}"]`);
-    if(ds){ const d=w[sku][m], sug=custo>0?this.priceForMargin(this.cfg(m),custo,this.target()):null;
-      ds.innerHTML=(d!=null&&d>0?`<span class="pdesc">-${U.pct(d)}</span> · `:'')+'sug '+(sug!=null?U.brl(sug):'—'); }
   },
   _mkClass(m){ return {'Shopee':'mk-shopee','Mercado Livre':'mk-ml','Magalu':'mk-magalu','TikTok Shop':'mk-tiktok','Loja Física':'mk-loja'}[m]||''; },
   _goPage(n){ this._page=n; this.renderTable(); const el=document.getElementById('pricing-table'); if(el&&el.scrollIntoView) el.scrollIntoView({block:'start',behavior:'smooth'}); },
@@ -6359,15 +6429,24 @@ const Tarefas = {
       ${bulkBar}
       <div class="panel" style="padding:0;overflow:hidden">
       <div style="overflow-x:auto">
-      <table class="lst-table" style="min-width:600px">
+      <table class="lst-table">
+        <colgroup>
+          <col style="width:36px">
+          <col style="width:36px">
+          <col><!-- Tarefa: ocupa o restante -->
+          <col style="width:130px">
+          <col style="width:130px">
+          <col style="width:130px">
+          <col style="width:70px">
+        </colgroup>
         <thead><tr>
-          <th class="lst-chk" style="text-align:center"><input type="checkbox" id="lst-chk-all" ${allChk?'checked':''}></th>
-          <th class="lst-prio">Pri.</th>
-          <th style="min-width:200px">Tarefa</th>
-          <th style="width:140px">Status</th>
-          <th style="width:130px">Categoria</th>
-          <th style="width:140px">Prazo</th>
-          <th style="width:80px;text-align:center">Info</th>
+          <th style="text-align:center"><input type="checkbox" id="lst-chk-all" ${allChk?'checked':''}></th>
+          <th style="text-align:center">Pri.</th>
+          <th>Tarefa</th>
+          <th>Status</th>
+          <th>Categoria</th>
+          <th>Prazo</th>
+          <th style="text-align:center">Info</th>
         </tr></thead>
         <tbody>${rows}</tbody>
       </table></div></div>`;
