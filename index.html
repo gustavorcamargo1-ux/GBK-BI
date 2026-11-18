@@ -535,6 +535,8 @@ body.role-viewer .ptest,body.role-viewer #pricing-save,body.role-viewer #pricing
 .pricing-tbl td.mk-ml{background:rgba(255,209,0,.20)}
 .pricing-tbl td.mk-magalu{background:rgba(0,134,255,.14)}
 .pricing-tbl td.mk-tiktok{background:rgba(120,120,130,.16)}
+.pricing-tbl th.mk-loja{background:#16A34A;color:#fff}
+.pricing-tbl td.mk-loja{background:rgba(22,163,74,.14)}
 /* paginação */
 .pager{display:flex;flex-direction:column;align-items:center;gap:7px;margin-top:14px}
 .pager-row{display:flex;flex-wrap:wrap;gap:5px;justify-content:center}
@@ -1850,7 +1852,8 @@ const MKT_BRAND = {
   'Magalu':{bg:'#0086FF',fg:'#FFFFFF',ic:'fa-store'},
   'TikTok Shop':{bg:'#111111',fg:'#FFFFFF',ic:'fa-music'},
   'Amazon':{bg:'#232F3E',fg:'#FF9900',ic:'fa-cart-shopping'},
-  'Site Próprio':{bg:'#E0461A',fg:'#FFFFFF',ic:'fa-globe'}
+  'Site Próprio':{bg:'#E0461A',fg:'#FFFFFF',ic:'fa-globe'},
+  'Loja Física':{bg:'#16A34A',fg:'#FFFFFF',ic:'fa-shop'}
 };
 
 /* ============================================================
@@ -2276,6 +2279,23 @@ const PRESETS = {
     },
     perUnit:['valorBruto','precoLista'],
     matchByName:true
+  },
+  'loja_fisica':{
+    type:'vendas',
+    marketplace:'Loja Física',
+    signature:['Número do pedido','Código (SKU)','Frete pedido rateado'],
+    map:{
+      pedido:    'Número do pedido',
+      data:      'Data',
+      sku:       'Código (SKU)',
+      produto:   'Descrição',
+      qtd:       'Quantidade',
+      valorBruto:'Valor unitário',
+      descontos: 'Desconto item',
+      frete:     'Frete pedido rateado'
+    },
+    // sem taxa de marketplace — venda direta
+    skipStatus:{ col:'Situação', values:['Cancelado','Cancelada'] }
   }
 };
 
@@ -5111,7 +5131,7 @@ const Pricing = {
     if(ds){ const d=w[sku][m], sug=custo>0?this.priceForMargin(this.cfg(m),custo,this.target()):null;
       ds.innerHTML=(d!=null&&d>0?`<span class="pdesc">-${U.pct(d)}</span> · `:'')+'sug '+(sug!=null?U.brl(sug):'—'); }
   },
-  _mkClass(m){ return {'Shopee':'mk-shopee','Mercado Livre':'mk-ml','Magalu':'mk-magalu','TikTok Shop':'mk-tiktok'}[m]||''; },
+  _mkClass(m){ return {'Shopee':'mk-shopee','Mercado Livre':'mk-ml','Magalu':'mk-magalu','TikTok Shop':'mk-tiktok','Loja Física':'mk-loja'}[m]||''; },
   _goPage(n){ this._page=n; this.renderTable(); const el=document.getElementById('pricing-table'); if(el&&el.scrollIntoView) el.scrollIntoView({block:'start',behavior:'smooth'}); },
   _filterChanged(){ this._page=1; this.renderTable(); },
   _renderPager(totalN,pages,pg){
