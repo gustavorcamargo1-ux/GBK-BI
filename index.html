@@ -505,6 +505,15 @@ body.role-viewer .cx-in,body.role-viewer .cx-del,body.role-viewer [data-cx-add]{
 
 .topbar-actions{display:flex;align-items:center;gap:14px;flex-wrap:wrap;justify-content:flex-end}
 
+/* ===== Abas do menu Produtos ===== */
+.ptabs{display:flex;flex-wrap:wrap;gap:4px;border-bottom:2px solid var(--line);margin-bottom:12px;padding-bottom:0}
+.ptab{padding:7px 14px;border:1px solid transparent;border-bottom:none;border-radius:8px 8px 0 0;background:transparent;color:var(--txt-2);font-size:13px;cursor:pointer;transition:background .15s,color .15s}
+.ptab:hover{background:var(--panel-2);color:var(--txt-1)}
+.ptab.active{background:var(--panel);border-color:var(--line);color:var(--brand);font-weight:600;position:relative;top:2px}
+.ptab-pane{display:block}
+.ptab-off{display:none!important}
+/* ===== Fim abas ===== */
+
 .pricing-toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:6px}
 .pricing-toolbar .pricing-search{flex:1;min-width:200px}
 .pricing-brand{padding:9px 11px;border-radius:9px;border:1px solid var(--line);background:var(--panel-2);color:var(--txt-1);font-size:13.5px;max-width:220px}
@@ -1443,12 +1452,7 @@ textarea#tf-desc{min-height:170px !important;height:170px;max-height:50vh;resize
         <div class="table-wrap"><table id="pricing-table" class="simple-table pricing-tbl"></table></div>
         <div id="pricing-pager" class="pager"></div>
       </div>
-    <div class="panel">
-        <div class="panel-head"><h3><i class="fa-solid fa-file-import"></i> Preços atuais (auditoria)</h3>
-          <label class="primary-btn sm" style="cursor:pointer;margin:0"><i class="fa-solid fa-upload"></i> Importar preços<input type="file" id="precos-input" accept=".xlsx,.xls,.csv" style="display:none"></label></div>
-        <p class="muted">Importe sua planilha de anúncios (SKU + Valor Shopee + Valor Mercado livre) para comparar o <b>preço atual</b> com o <b>sugerido</b> e auditar a margem de toda a base de uma vez.</p>
       </div>
-            </div>
 <div class="ptab-pane ptab-off" id="ptab-price-audit">
         <div class="panel">
           <div class="panel-head">
