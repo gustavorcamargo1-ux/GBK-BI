@@ -1012,6 +1012,36 @@ textarea#tf-desc{min-height:170px !important;height:170px;max-height:50vh;resize
 .cm-pct-badge.pos{background:rgba(34,197,94,.15);color:#16a34a}
 .cm-pct-badge.neg{background:rgba(239,68,68,.15);color:#dc2626}
 
+/* ===== Simulador de Preços ===== */
+.sim-toolbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px}
+.sim-search{flex:1;min-width:200px;max-width:340px;padding:6px 10px;border:1px solid var(--line);border-radius:8px;background:var(--panel);color:var(--txt-1);font-size:13px}
+.sim-search:focus{outline:none;border-color:var(--brand)}
+.sim-tbl{width:100%;border-collapse:collapse;table-layout:auto;font-size:13px}
+.sim-tbl thead th{background:var(--panel-2);border-bottom:2px solid var(--line);padding:7px 10px;white-space:nowrap;font-weight:600;font-size:12px;color:var(--txt-2)}
+.sim-tbl tbody tr:nth-child(even){background:var(--panel-2)}
+.sim-tbl tbody tr:hover{background:var(--hover)}
+.sim-tbl td{padding:5px 8px;border-bottom:1px solid var(--line);vertical-align:middle}
+.sim-sku{font-family:monospace;font-size:11px;color:var(--txt-3)}
+.sim-nome{font-size:12px;font-weight:500;color:var(--txt-1);max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sim-custo{font-size:12px;color:var(--txt-2);text-align:right;white-space:nowrap}
+/* célula de canal no simulador */
+.sim-cell{min-width:130px;text-align:right}
+.sim-price-inp{width:80px;text-align:right;padding:3px 6px;border:1px solid var(--line);border-radius:6px;background:var(--panel);color:var(--txt-1);font-size:12px;font-family:inherit}
+.sim-price-inp:focus{outline:none;border-color:var(--brand)}
+.sim-fee-inp{width:52px;text-align:right;padding:2px 5px;border:1px solid var(--line);border-radius:5px;background:var(--panel);color:var(--txt-2);font-size:11px;font-family:inherit}
+.sim-fee-inp:focus{outline:none;border-color:var(--brand)}
+.sim-result{margin-top:3px;display:flex;align-items:center;justify-content:flex-end;gap:4px;flex-wrap:wrap}
+.sim-pct{font-size:13px;font-weight:700}
+.sim-lucro{font-size:11px;color:var(--txt-3)}
+.sim-repasse{font-size:10px;color:var(--txt-3);font-style:italic}
+.sim-fee-row{display:flex;align-items:center;justify-content:flex-end;gap:3px;margin-top:2px}
+.sim-fee-lbl{font-size:10px;color:var(--txt-3)}
+.sim-th-mkt{text-align:center}
+.sim-reset{padding:2px 7px;border-radius:5px;border:1px solid var(--line);background:var(--panel);color:var(--txt-3);font-size:10px;cursor:pointer;margin-left:4px}
+.sim-reset:hover{border-color:var(--brand);color:var(--brand)}
+.sim-nota{font-size:11px;color:var(--txt-3);margin-top:8px;padding:6px 10px;background:var(--panel-2);border-radius:7px;border-left:3px solid var(--brand)}
+.sim-pct.pos{color:var(--green)}.sim-pct.neg{color:var(--red)}.sim-pct.warn-t{color:#E0A100}
+
 </style>
 </head>
 <body>
@@ -1387,6 +1417,7 @@ textarea#tf-desc{min-height:170px !important;height:170px;max-height:50vh;resize
         <button class="ptab" data-ptab="kits"><i class="fa-solid fa-boxes-packing"></i> Sugestão de Kits</button>
         <button class="ptab" data-ptab="price-audit"><i class="fa-solid fa-shield-halved"></i> Auditoria de Preços</button>
         <button class="ptab" data-ptab="fab-tabelas"><i class="fa-solid fa-building"></i> Tabelas de Fabricantes</button>
+        <button class="ptab" data-ptab="simulador"><i class="fa-solid fa-flask"></i> Simulador</button>
       </div>
       <div class="ptab-pane" id="ptab-cat">
 <div class="panel">
@@ -1680,6 +1711,20 @@ textarea#tf-desc{min-height:170px !important;height:170px;max-height:50vh;resize
           </div>
           <div class="kit-controls" id="kit-controls"></div>
           <div id="kit-results"><p class="muted">Escolha as opções e clique em <b>Gerar sugestões</b>. A análise usa seus próprios pedidos e catálogo — nada sai do sistema.</p></div>
+        </div>
+      </div>
+
+      <div class="ptab-pane ptab-off" id="ptab-simulador">
+        <div class="panel">
+          <div class="panel-head"><h3><i class="fa-solid fa-flask"></i> Simulador de Preços</h3></div>
+          <div class="sim-toolbar">
+            <input type="text" id="sim-search" class="sim-search" placeholder="Buscar SKU, EAN ou produto…" oninput="Simulador.render()">
+            <select id="sim-brand" style="padding:6px 10px;border:1px solid var(--line);border-radius:8px;background:var(--panel);color:var(--txt-1);font-size:13px" onchange="Simulador.render()"><option value="">Todas as marcas</option></select>
+            <label style="font-size:12px;color:var(--txt-2);display:flex;align-items:center;gap:5px"><input type="checkbox" id="sim-socomcusto" onchange="Simulador.render()"> Só com custo</label>
+          </div>
+          <p class="sim-nota"><i class="fa-solid fa-circle-info" style="color:var(--brand)"></i> Edite o <b>preço</b> ou a <b>taxa%</b> de cada canal e veja margem e lucro atualizando ao vivo. Nada é salvo aqui — use o Catálogo para salvar preços.</p>
+          <div class="table-wrap"><table id="sim-table" class="sim-tbl"></table></div>
+          <div id="sim-pager" class="pager"></div>
         </div>
       </div>
 
@@ -4317,8 +4362,8 @@ const Pricing = {
     if(this.__skuStats) return this.__skuStats;
     const map={}; // map[sku][marketplace] = {rb,tx,fr,n,lucro,lastData,lastPreco,qtd}
     (State.enriched||[]).forEach(r=>{
-      const s=r.sku, m=r.marketplace;
-      if(!s||!m) return;
+      const s=''+r.sku, m=r.marketplace;
+      if(!s||s==='undefined'||!m) return;
       if(!map[s]) map[s]={};
       if(!map[s][m]) map[s][m]={rb:0,tx:0,fr:0,n:0,lucro:0,qtd:0,lastData:'',lastPreco:0};
       const d=map[s][m];
@@ -4478,7 +4523,7 @@ const Pricing = {
     prods=prods.slice((pg-1)*perPage,pg*perPage);
     const _sc=this._sort||{col:'sku',dir:-1}; const _a=c=>_sc.col===c?(_sc.dir>0?' ▲':' ▼'):'';
     const head=`<tr><th style="width:32px"><input type="checkbox" id="pricing-chk-all" title="Selecionar todos"></th><th class="ps-sort" data-sort="sku">SKU${_a('sku')}</th><th>EAN</th><th class="col-prod ps-sort" data-sort="produto">Produto${_a('produto')}</th><th class="ps-sort" data-sort="marca">Marca${_a('marca')}</th><th class="num col-custo ps-sort" data-sort="custo">Custo${_a('custo')}</th>${this.mkts().map(m=>`<th class="num mk-h ps-sort ${this._mkClass(m)}" data-sort="mkt:${m}"><i class="fa-solid ${(MKT_BRAND[m]||{}).ic||''}"></i> ${m}${_a('mkt:'+m)}</th>`).join('')}</tr>`;
-    const _vend={}; (State.enriched||[]).forEach(v=>{ _vend[v.sku]=(_vend[v.sku]||0)+(v.qtd||0); });
+    const _vend={}; (State.enriched||[]).forEach(v=>{ const _sk=''+v.sku; _vend[_sk]=(_vend[_sk]||0)+(v.qtd||0); });
     const body=prods.map(p=>{
       const cells=this.mkts().map(m=>{
         const cfg=this.cfg(m), sug=p.custo>0?this.priceForMargin(cfg,p.custo,t):null, cur=this._price(p.sku,m), dsc=this._desc(p.sku,m);
@@ -4558,6 +4603,7 @@ const Pricing = {
       localStorage.setItem('gbk-prod-tab',k);
       if(k==='kits' && typeof Kits!=='undefined'){ Kits.render(); }
       if(k==='fab-tabelas' && typeof FabTabelas!=='undefined'){ FabTabelas._carregarLista(); }
+      if(k==='simulador'){ Simulador.init(); }
     };
     bar.querySelectorAll('.ptab').forEach(b=>b.onclick=()=>show(b.dataset.ptab));
     show(cur);
@@ -5077,8 +5123,8 @@ const Pricing = {
   },
   _raioX(sku){
     const p=this.productList().find(x=>x.sku===sku);
-    const sales=(State.enriched||[]).filter(v=>v.sku===sku);
-    const devol=(State.raw.vendas||[]).filter(v=>v.sku===sku && v.situacao && v.situacao!=='ok');
+    const sales=(State.enriched||[]).filter(v=>''+v.sku===sku);
+    const devol=(State.raw.vendas||[]).filter(v=>''+v.sku===sku && v.situacao && v.situacao!=='ok');
     const nome=(p&&p.produto)||(sales[0]&&sales[0].produto)||sku;
     const closeAndCalc=()=>{ const ov=document.getElementById('pricing-modal'); if(ov) ov.classList.remove('show'); this._openInCalc(sku); };
     if(!sales.length && !devol.length){
@@ -5290,6 +5336,179 @@ const Pricing = {
     }catch(e){ UI.toast('err','Falha ao importar preços',e.message||''); }
   },
   render(){ this._initTabs(); this.__pv=null; const tx=document.getElementById('pricing-tax'); if(tx&&tx.value==='') tx.value=this._defaultTax(); this.renderFees(); this.renderPicker(); this.renderCards(); this.renderTable(); }
+};
+
+/* ============================================================
+   SIMULADOR DE PREÇOS
+   Aba estilo Excel: edite preço e taxa de cada canal ao vivo
+   ============================================================ */
+const Simulador = {
+  _page: 1,
+  _pageSize: 30,
+  _overrides: {}, // {sku: {canal: {preco, taxa}}}
+
+  init(){
+    // popular filtro de marca
+    const sel = document.getElementById('sim-brand');
+    if(sel){
+      const marcas = [...new Set((Pricing.productList()||[]).map(p=>p.marca).filter(Boolean))].sort();
+      marcas.forEach(m=>{ const o=document.createElement('option'); o.value=m; o.textContent=m; sel.appendChild(o); });
+    }
+    this.render();
+  },
+
+  _prods(){
+    const q = (document.getElementById('sim-search')||{}).value||'';
+    const marca = (document.getElementById('sim-brand')||{}).value||'';
+    const soComCusto = (document.getElementById('sim-socomcusto')||{}).checked;
+    const ql = q.toLowerCase();
+    return (Pricing.productList()||[]).filter(p=>{
+      if(soComCusto && !(p.custo>0)) return false;
+      if(marca && p.marca!==marca) return false;
+      if(ql && !(''+p.sku).includes(ql) && !(p.produto||'').toLowerCase().includes(ql) && !(p.ean||'').includes(ql)) return false;
+      return true;
+    });
+  },
+
+  _ov(sku, m){
+    return ((this._overrides[sku]||{})[m])||{};
+  },
+
+  _setOv(sku, m, key, val){
+    if(!this._overrides[sku]) this._overrides[sku]={};
+    if(!this._overrides[sku][m]) this._overrides[sku][m]={};
+    this._overrides[sku][m][key]=val;
+  },
+
+  _resetOv(sku, m){
+    if(this._overrides[sku]) delete this._overrides[sku][m];
+    this._updateCell(sku, m);
+  },
+
+  render(){
+    const tb = document.getElementById('sim-table');
+    if(!tb) return;
+    const mkts = Pricing.mkts();
+    const alvo = Pricing.target();
+    const prods = this._prods();
+    const total = prods.length;
+    const pages = Math.max(1, Math.ceil(total/this._pageSize));
+    if(this._page > pages) this._page = pages;
+    const slice = prods.slice((this._page-1)*this._pageSize, this._page*this._pageSize);
+
+    // cabeçalho
+    const mktCols = mkts.map(m=>{
+      const b = MKT_BRAND[m]||{};
+      return `<th class="sim-th-mkt" colspan="1" style="background:${b.bg||'var(--panel-2)'};color:${b.fg||'var(--txt-1)'};min-width:140px">
+        <i class="fa-solid ${b.ic||''}"></i> ${m}
+      </th>`;
+    }).join('');
+    const head = `<thead><tr>
+      <th style="min-width:60px">SKU</th>
+      <th style="min-width:160px">Produto</th>
+      <th class="num" style="min-width:80px">Custo</th>
+      ${mktCols}
+    </tr></thead>`;
+
+    // linhas
+    const rows = slice.map(p=>{
+      const cells = mkts.map(m=>{
+        const cfg = Pricing.cfg(m);
+        const ov = this._ov(p.sku, m);
+        // preço: override > catálogo (preço salvo) > pv do ERP > sugestão
+        const catPreco = Pricing._price(p.sku, m);
+        const basePreco = ov.preco != null ? ov.preco : (catPreco != null ? catPreco : (p.pv>0 ? p.pv : (p.custo>0 ? Pricing.priceForMargin(cfg, p.custo, alvo)||'' : '')));
+        const precoVal = basePreco !== '' ? (+basePreco).toFixed(2) : '';
+        // taxa: override > cfg padrão
+        const taxaVal = ov.taxa != null ? ov.taxa : (cfg.com + (cfg.fixPct||0));
+        const hasOv = ov.preco != null || ov.taxa != null;
+        const resHtml = this._calcHtml(p.sku, m, p.custo, precoVal, taxaVal, alvo, cfg);
+        return `<td class="sim-cell" data-simcell="${p.sku}|${m}">
+          <div style="display:flex;align-items:center;justify-content:flex-end;gap:4px">
+            <input class="sim-price-inp" type="number" step="0.01" min="0"
+              data-ssku="${p.sku}" data-sm="${m}" data-scusto="${p.custo}"
+              value="${precoVal}" placeholder="preço"
+              oninput="Simulador._onPrice(this)">
+            ${hasOv ? `<button class="sim-reset" title="Resetar" onclick="Simulador._resetOv('${p.sku}','${m}')">↺</button>` : ''}
+          </div>
+          <div class="sim-fee-row">
+            <span class="sim-fee-lbl">Taxa%</span>
+            <input class="sim-fee-inp" type="number" step="0.1" min="0" max="100"
+              data-ssku="${p.sku}" data-sm="${m}" data-scusto="${p.custo}"
+              value="${taxaVal.toFixed(1)}"
+              oninput="Simulador._onFee(this)">
+          </div>
+          <div class="sim-result" data-simres="${p.sku}|${m}">${resHtml}</div>
+        </td>`;
+      }).join('');
+      return `<tr>
+        <td class="sim-sku">${p.sku}</td>
+        <td><div class="sim-nome" title="${p.produto||''}">${p.produto||'—'}</div>
+          <div style="font-size:10px;color:var(--txt-3)">${p.marca||''}</div></td>
+        <td class="sim-custo">${p.custo>0?U.brl(p.custo):'<span style="color:var(--warn)">sem custo</span>'}</td>
+        ${cells}
+      </tr>`;
+    }).join('');
+
+    tb.innerHTML = head + `<tbody>${rows||'<tr><td colspan="10" class="muted" style="padding:20px;text-align:center">Nenhum produto encontrado.</td></tr>'}</tbody>`;
+
+    // paginação
+    const pg = document.getElementById('sim-pager');
+    if(pg){
+      if(pages<=1){ pg.innerHTML=''; return; }
+      let html='';
+      if(this._page>1) html+=`<button class="pager-btn" onclick="Simulador._goPage(${this._page-1})">‹</button>`;
+      const start=Math.max(1,this._page-2), end=Math.min(pages,this._page+2);
+      for(let i=start;i<=end;i++) html+=`<button class="pager-btn${i===this._page?' active':''}" onclick="Simulador._goPage(${i})">${i}</button>`;
+      if(this._page<pages) html+=`<button class="pager-btn" onclick="Simulador._goPage(${this._page+1})">›</button>`;
+      html+=`<span class="pager-info">${total} produtos</span>`;
+      pg.innerHTML=html;
+    }
+  },
+
+  _calcHtml(sku, m, custo, precoVal, taxaPct, alvo, cfg){
+    if(!precoVal || !(+precoVal>0) || !(custo>0)){
+      return `<span style="color:var(--txt-3);font-size:11px">—</span>`;
+    }
+    const preco = +precoVal;
+    // usa taxa override se foi editada, senão usa a do cfg
+    const ovTaxa = taxaPct;
+    const ov = { taxa: preco * ovTaxa/100 + (cfg.fixVal||0) };
+    const r = Pricing.calc(cfg, custo, preco, ov);
+    const mc = r.margemPct >= alvo ? 'pos' : r.margemPct >= 0 ? 'warn-t' : 'neg';
+    const lucroStr = r.margem >= 0 ? '+'+U.brl(r.margem) : U.brl(r.margem);
+    return `<span class="sim-pct ${mc}">${U.pct(r.margemPct)}</span>
+      <span class="sim-lucro">${lucroStr}</span>
+      <span class="sim-repasse">rep.${U.brl(r.repasse)}</span>`;
+  },
+
+  _onPrice(inp){
+    const sku=inp.dataset.ssku, m=inp.dataset.sm, custo=+inp.dataset.scusto;
+    this._setOv(sku, m, 'preco', inp.value===''?null:+inp.value);
+    // ler taxa atual do campo fee da mesma célula
+    const cell = inp.closest('td');
+    const feeInp = cell ? cell.querySelector('.sim-fee-inp') : null;
+    const taxaPct = feeInp ? (+feeInp.value||0) : (Pricing.cfg(m).com + (Pricing.cfg(m).fixPct||0));
+    const res = cell ? cell.querySelector('[data-simres]') : null;
+    if(res) res.innerHTML = this._calcHtml(sku, m, custo, inp.value, taxaPct, Pricing.target(), Pricing.cfg(m));
+  },
+
+  _onFee(inp){
+    const sku=inp.dataset.ssku, m=inp.dataset.sm, custo=+inp.dataset.scusto;
+    this._setOv(sku, m, 'taxa', +inp.value);
+    const cell = inp.closest('td');
+    const priceInp = cell ? cell.querySelector('.sim-price-inp') : null;
+    const precoVal = priceInp ? priceInp.value : '';
+    const res = cell ? cell.querySelector('[data-simres]') : null;
+    if(res) res.innerHTML = this._calcHtml(sku, m, custo, precoVal, +inp.value, Pricing.target(), Pricing.cfg(m));
+  },
+
+  _updateCell(sku, m){
+    // re-renderiza só a célula após reset
+    this.render();
+  },
+
+  _goPage(n){ this._page=n; this.render(); const el=document.getElementById('sim-table'); if(el) el.scrollIntoView({block:'start',behavior:'smooth'}); },
 };
 
 const Caixa = {
