@@ -4498,7 +4498,7 @@ const Pricing = {
           // sem histórico: usa simulação com taxas configuradas
           const r=this.calc(cfg,p.custo,+val,this._ov(p.sku,m));
           const mc2=r.margemPct>=alvo?'pos':r.margemPct>=0?'warn-t':'neg';
-          margemLine=`<span class="ptm ${mc2}" style="font-size:12px;font-weight:700">${U.pct(r.margemPct)}</span><span style="color:var(--txt-3);font-size:11px;margin-left:4px">${U.brl(r.lucro||0)}</span><span style="color:var(--txt-3);font-size:10px;margin-left:3px">(sim)</span>`;
+          margemLine=`<span class="ptm ${mc2}" style="font-size:12px;font-weight:700">${U.pct(r.margemPct)}</span><span style="color:var(--txt-3);font-size:11px;margin-left:4px">${U.brl(r.margem||0)}</span><span style="color:var(--txt-3);font-size:10px;margin-left:3px">(sim)</span>`;
         }
         // ── LINHA 3: histórico de vendas ou sugestão ──
         let histLine='';
@@ -5223,13 +5223,13 @@ const Pricing = {
         const cfgReal=Object.assign({},this.cfg(m),{fee:rs.feePct,frete:rs.freteMed});
         const rReal=this.calc(cfgReal,custo,v,this._ov(sku,m));
         const mc2=rReal.margemPct>=alvo?'pos':rReal.margemPct>=0?'warn-t':'neg';
-        const lucroFmt=rReal.lucro>=0?'+'+U.brl(rReal.lucro):U.brl(rReal.lucro);
+        const lucroFmt=rReal.margem>=0?'+'+U.brl(rReal.margem):U.brl(rReal.margem);
         cell.innerHTML=`<span class="ptm ${mc2}" style="font-size:12px;font-weight:700">${U.pct(rReal.margemPct)}</span><span style="color:var(--txt-3);font-size:11px;margin-left:4px">${lucroFmt}</span>`;
       } else {
         // sem histórico: simulação com taxas configuradas
         const r=this.calc(this.cfg(m),custo,v,this._ov(sku,m));
         const mc2=r.margemPct>=alvo?'pos':r.margemPct>=0?'warn-t':'neg';
-        cell.innerHTML=`<span class="ptm ${mc2}" style="font-size:12px;font-weight:700">${U.pct(r.margemPct)}</span><span style="color:var(--txt-3);font-size:11px;margin-left:4px">${U.brl(r.lucro||0)}</span><span style="color:var(--txt-3);font-size:10px;margin-left:3px">(sim)</span>`;
+        cell.innerHTML=`<span class="ptm ${mc2}" style="font-size:12px;font-weight:700">${U.pct(r.margemPct)}</span><span style="color:var(--txt-3);font-size:11px;margin-left:4px">${U.brl(r.margem||0)}</span><span style="color:var(--txt-3);font-size:10px;margin-left:3px">(sim)</span>`;
       }
     }
   },
