@@ -2191,9 +2191,12 @@ const SCHEMAS = {
     {f:'ean',        label:'EAN / GTIN',    syn:['ean','gtin','gtinean','codigodebarras','codigobarras','codigodebarra']},
     {f:'custo',      label:'Custo de tabela',syn:['custo','custotabela','custodeproduto','precodecusto','custounitario','valorcusto']},
     {f:'precoVenda', label:'Preço de tabela (venda)',syn:['precovenda','precodevenda','precotabela','valortabela','precolista']},
-    {f:'categoria',  label:'Categoria',     syn:['categoria','grupo','tipo']},
-    {f:'marca',      label:'Marca',         syn:['marca','fabricante']},
-    {f:'fornecedor', label:'Fornecedor',    syn:['fornecedor','supplier','distribuidor']}
+    {f:'categoria',   label:'Categoria',          syn:['categoria','grupo','tipo']},
+    {f:'marca',       label:'Marca',              syn:['marca','fabricante']},
+    {f:'fornecedor',  label:'Fornecedor',         syn:['fornecedor','supplier','distribuidor']},
+    {f:'estoque',     label:'Estoque atual',      syn:['estoque','saldoestoque','qtdestoque','quantidade']},
+    {f:'estoqueMini', label:'Estoque mínimo',     syn:['estoqueminimo','estoquemin','qtdminima','minimoestoque']},
+    {f:'peso',        label:'Peso bruto (Kg)',    syn:['pesobruto','peso','weightkg','pesobrutoemkg']}
   ],
   mp:[
     {f:'pedido',      label:'N° Pedido ML (order_id)',  syn:['pedido','orderid','numerodavendanomercadolivre']},
