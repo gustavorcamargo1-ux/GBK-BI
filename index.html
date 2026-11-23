@@ -2281,7 +2281,10 @@ const PRESETS = {
       fornecedor:'Fornecedor',
       categoria:'Categoria',
       marca:'Marca',
-      ean:'GTIN/EAN'
+      ean:'GTIN/EAN',
+      estoque:'Estoque',
+      estoqueMini:'Estoque mínimo',
+      peso:'Peso bruto (Kg)'
     }
   },
   'shopee_vendas':{
@@ -4391,7 +4394,7 @@ const Pricing = {
              margemReal };
   },
   productList(){
-    return (State.raw.erp||[]).filter(e=>e.sku).map(e=>{const sku=''+e.sku;const meta=(State.prodmeta&&State.prodmeta[sku])||{};return {sku,produto:e.produto||'',custo:e.custo||0,pv:e.precoVenda||0,marca:e.marca||meta.marca||'',categoria:e.categoria||'',ean:e.ean||meta.ean||''};});
+    return (State.raw.erp||[]).filter(e=>e.sku).map(e=>{const sku=''+e.sku;const meta=(State.prodmeta&&State.prodmeta[sku])||{};return {sku,produto:e.produto||'',custo:e.custo||0,pv:e.precoVenda||0,marca:e.marca||meta.marca||'',categoria:e.categoria||'',ean:e.ean||meta.ean||'',estoque:e.estoque!=null?+e.estoque:null,estoqueMini:e.estoqueMini!=null?+e.estoqueMini:null,peso:e.peso!=null?+e.peso:null};});
   },
   target(){ return U.parseNum(document.getElementById('pricing-target').value)||0; },
   renderFees(){
@@ -4517,6 +4520,7 @@ const Pricing = {
         if(sc.col==='produto') return (p.produto||'').toLowerCase();
         if(sc.col==='marca') return (p.marca||'').toLowerCase();
         if(sc.col==='custo') return p.custo||0;
+        if(sc.col==='estoque') return p.estoque!=null?p.estoque:Infinity;
         if(sc.col.indexOf('mkt:')===0){ if(!(p.custo>0)) return -Infinity; const m=sc.col.slice(4); const pr=this._price(p.sku,m)!=null?this._price(p.sku,m):(p.pv>0?p.pv:this.priceForMargin(this.cfg(m),p.custo,t)); return pr!=null?this.calc(this.cfg(m),p.custo,pr,this._ov(p.sku,m)).margemPct:-Infinity; }
         return 0;
       };
@@ -4526,7 +4530,7 @@ const Pricing = {
     if((this._page||1)>pages) this._page=1; const pg=this._page||1;
     prods=prods.slice((pg-1)*perPage,pg*perPage);
     const _sc=this._sort||{col:'sku',dir:-1}; const _a=c=>_sc.col===c?(_sc.dir>0?' ▲':' ▼'):'';
-    const head=`<tr><th style="width:32px"><input type="checkbox" id="pricing-chk-all" title="Selecionar todos"></th><th class="ps-sort" data-sort="sku">SKU${_a('sku')}</th><th>EAN</th><th class="col-prod ps-sort" data-sort="produto">Produto${_a('produto')}</th><th class="ps-sort" data-sort="marca">Marca${_a('marca')}</th><th class="num col-custo ps-sort" data-sort="custo">Custo${_a('custo')}</th>${this.mkts().map(m=>`<th class="num mk-h ps-sort ${this._mkClass(m)}" data-sort="mkt:${m}"><i class="fa-solid ${(MKT_BRAND[m]||{}).ic||''}"></i> ${m}${_a('mkt:'+m)}</th>`).join('')}</tr>`;
+    const head=`<tr><th style="width:32px"><input type="checkbox" id="pricing-chk-all" title="Selecionar todos"></th><th class="ps-sort" data-sort="sku">SKU${_a('sku')}</th><th>EAN</th><th class="col-prod ps-sort" data-sort="produto">Produto${_a('produto')}</th><th class="ps-sort" data-sort="marca">Marca${_a('marca')}</th><th class="num col-custo ps-sort" data-sort="custo">Custo${_a('custo')}</th><th class="num ps-sort" data-sort="estoque" title="Estoque atual (vermelho=zero, amarelo=abaixo do mínimo)">Estoque${_a('estoque')}</th>${this.mkts().map(m=>`<th class="num mk-h ps-sort ${this._mkClass(m)}" data-sort="mkt:${m}"><i class="fa-solid ${(MKT_BRAND[m]||{}).ic||''}"></i> ${m}${_a('mkt:'+m)}</th>`).join('')}</tr>`;
     const _vend={}; (State.enriched||[]).forEach(v=>{ const _sk=''+v.sku; _vend[_sk]=(_vend[_sk]||0)+(v.qtd||0); });
     const body=prods.map(p=>{
       const cells=this.mkts().map(m=>{
@@ -4567,7 +4571,8 @@ const Pricing = {
           <div data-mt="${p.sku}|${m}" style="margin-top:4px;display:flex;align-items:center;justify-content:flex-end;flex-wrap:wrap;gap:2px">${margemLine}</div>
           ${histLine}</td>`;
       }).join('');
-      return `<tr><td style="width:32px"><input type="checkbox" class="pricing-row-chk" data-sku="${p.sku}"></td><td class="mono" data-label="SKU"><span class="pricing-skuv">${p.sku}</span> <button type="button" class="pricing-edit" data-sku="${p.sku}" title="Editar cadastro"><i class="fa-solid fa-pen"></i></button></td><td class="mono small" data-label="EAN">${p.ean||'—'}</td><td class="col-prod pricing-openprod" data-label="Produto" data-sku="${p.sku}" title="Ver raio-X do produto (histórico)">${p.produto||''}${this._badges(p,_vend,alvo)}</td><td class="small" data-label="Marca">${p.marca||'—'}</td><td class="num col-custo" data-label="Custo">${U.brl(p.custo)}</td>${cells}</tr>`;
+      const estStr=p.estoque!=null?(p.estoque===0?'<span style="color:var(--red);font-weight:700">0</span>':(p.estoqueMini!=null&&p.estoque<=p.estoqueMini?`<span style="color:#E0A100;font-weight:600">${p.estoque}</span>`:`${p.estoque}`)):'—';
+      return `<tr><td style="width:32px"><input type="checkbox" class="pricing-row-chk" data-sku="${p.sku}"></td><td class="mono" data-label="SKU"><span class="pricing-skuv">${p.sku}</span> <button type="button" class="pricing-edit" data-sku="${p.sku}" title="Editar cadastro"><i class="fa-solid fa-pen"></i></button></td><td class="mono small" data-label="EAN">${p.ean||'—'}</td><td class="col-prod pricing-openprod" data-label="Produto" data-sku="${p.sku}" title="Ver raio-X do produto (histórico)">${p.produto||''}${this._badges(p,_vend,alvo)}</td><td class="small" data-label="Marca">${p.marca||'—'}</td><td class="num col-custo" data-label="Custo">${U.brl(p.custo)}</td><td class="num" data-label="Estoque" title="Estoque atual / mínimo: ${p.estoque!=null?p.estoque:'?'} / ${p.estoqueMini!=null?p.estoqueMini:'?'}">${estStr}</td>${cells}</tr>`;
     }).join('');
     tb.innerHTML=head+(body||'<tr><td colspan="9" class="muted">Nenhum produto no filtro.</td></tr>');
     tb.querySelectorAll('input.ptest').forEach(inp=>inp.oninput=()=>this._editCell(inp,tb));
@@ -4619,6 +4624,10 @@ const Pricing = {
     if(p.custo>0){
       const low=this.mkts().filter(m=>{ const pr=this._precoEf(p.sku,m); return pr!=null && this.calc(this.cfg(m),p.custo,pr,this._ov(p.sku,m)).margemPct<alvo; });
       if(low.length) b.push('<span class="pbadge pb-yel">abaixo da meta: '+low.map(m=>this._mkShort(m)).join(', ')+'</span>');
+    }
+    if(p.estoque!=null){
+      if(p.estoque===0) b.push('<span class="pbadge pb-red">estoque zero</span>');
+      else if(p.estoqueMini!=null && p.estoque<=p.estoqueMini) b.push('<span class="pbadge pb-yel">estoque baixo ('+p.estoque+')</span>');
     }
     return b.length?`<div class="pbadges">${b.join('')}</div>`:'';
   },
