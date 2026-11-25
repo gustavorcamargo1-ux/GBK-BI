@@ -731,6 +731,16 @@ body.role-viewer .pricing-edit{display:none}
 .kb-card.prio-media{border-left-color:#E0A100}
 .kb-card.prio-baixa{border-left-color:#4A78C2}
 .kb-card.dragging{opacity:.45}
+/* cor de destaque por tarefa */
+.kb-card.tc-cor{border-left-color:var(--tc) !important}
+.tc-swatch{display:inline-block;width:22px;height:22px;border-radius:50%;border:2px solid transparent;cursor:pointer;vertical-align:middle;transition:transform .12s,border-color .12s}
+.tc-swatch:hover{transform:scale(1.18)}
+.tc-swatch.ativo{border-color:var(--txt-1);transform:scale(1.18)}
+.tc-swatch.none-swatch{background:transparent;border:2px dashed var(--line)}
+.tc-row{display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin-top:2px}
+/* lista: linha colorida */
+.lst-row.tc-cor{background:color-mix(in srgb,var(--tc) 10%,transparent)}
+.lst-row.tc-cor td:first-child{box-shadow:inset 3px 0 0 var(--tc)}
 .kb-title{font-weight:600;font-size:13.5px;line-height:1.35;color:var(--txt-1)}
 .kb-meta{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;font-size:11px;color:var(--txt-2)}
 .kb-meta>span{background:var(--panel-2);border:1px solid var(--line);border-radius:6px;padding:2px 7px;white-space:nowrap}
@@ -6286,6 +6296,23 @@ const MercadoAds = {
 };
 
 const TAREFA_PRIO = { alta:{l:'Alta'}, media:{l:'Média'}, baixa:{l:'Baixa'} };
+const TC_CORES = [
+  {v:'',    label:'Sem cor'},
+  {v:'#E5484D', label:'Vermelho'},
+  {v:'#F76B15', label:'Laranja'},
+  {v:'#E0A100', label:'Amarelo'},
+  {v:'#30A46C', label:'Verde'},
+  {v:'#3B82F6', label:'Azul'},
+  {v:'#8B5CF6', label:'Roxo'},
+  {v:'#EC4899', label:'Rosa'},
+  {v:'#64748B', label:'Cinza'},
+];
+function tcSwatches(corAtual){
+  return TC_CORES.map(c=>c.v===''
+    ? `<span class="tc-swatch none-swatch${corAtual===''?' ativo':''}" data-tc="" title="Sem cor">✕</span>`
+    : `<span class="tc-swatch${corAtual===c.v?' ativo':''}" data-tc="${c.v}" title="${c.label}" style="background:${c.v}"></span>`
+  ).join('');
+}
 const TAREFA_COLS = [['todo','A fazer','fa-list-check'],['doing','Em andamento','fa-spinner'],['done','Concluída','fa-circle-check']];
 
 /* ===== ROTINA padrão (seções e itens default) ===== */
@@ -6434,7 +6461,8 @@ const Tarefas = {
     const rec=(t.recorrencia&&t.recorrencia!=='none')?`<span class="kb-rec"><i class="fa-solid fa-rotate"></i> ${({diaria:'diária',semanal:'semanal',mensal:'mensal'})[t.recorrencia]||''}</span>`:'';
     const i=TAREFA_COLS.findIndex(c=>c[0]===t.status);
     const nav=`<div class="kb-nav">${i>0?`<button class="kb-move" data-id="${t.id}" data-dir="-1">‹</button>`:''}${i<2?`<button class="kb-move" data-id="${t.id}" data-dir="1">›</button>`:''}</div>`;
-    return `<div class="kb-card prio-${t.prioridade||'media'}" draggable="true" data-id="${t.id}">
+    const tcStyle=t.cor?` style="--tc:${t.cor}"`:'' , tcCls=t.cor?' tc-cor':'';
+    return `<div class="kb-card prio-${t.prioridade||'media'}${tcCls}" draggable="true" data-id="${t.id}"${tcStyle}>
       <div class="kb-title">${this._esc(t.titulo)}</div>
       <div class="kb-meta">${cat}${prazo}${chk}${rec}</div>${nav}</div>`;
   },
@@ -6463,7 +6491,7 @@ const Tarefas = {
       const dateStr=`${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
       const isToday=dateStr===hoje;
       const tasks=(byDate[dateStr]||[]).slice(0,3);
-      const dots=tasks.map(t=>`<div class="cal-dot prio-${t.prioridade||'media'}${t.status==='done'?' done-task':''}" data-id="${t.id}" title="${this._esc(t.titulo)}" draggable="true">${this._esc(t.titulo)}</div>`).join('');
+      const dots=tasks.map(t=>`<div class="cal-dot prio-${t.prioridade||'media'}${t.status==='done'?' done-task':''}" data-id="${t.id}" title="${this._esc(t.titulo)}" draggable="true"${t.cor?` style="border-left:3px solid ${t.cor};padding-left:4px"`:''} >${this._esc(t.titulo)}</div>`).join('');
       const more=(byDate[dateStr]||[]).length>3?`<div class="cal-dot" style="color:var(--txt-3)">+${(byDate[dateStr]||[]).length-3} mais</div>`:'';
       cells+=`<div class="cal-day${isToday?' today':''}" data-caldate="${dateStr}"><div class="cal-day-num"${isToday?'':''} >${d}</div><div class="cal-day-dots">${dots}${more}</div></div>`;
     }
@@ -6650,7 +6678,8 @@ const Tarefas = {
       const stBadge=`<span class="ss-badge${t.status==='doing'?' importante':''}">${ST[t.status]||t.status}</span>`;
       const checked=sel.has(t.id)?'checked':'';
       const descPreview=t.descricao?`<div class="lst-sub">${this._esc(t.descricao.substring(0,60))}${t.descricao.length>60?'…':''}</div>`:'';
-      return `<tr class="lst-row${sel.has(t.id)?' lst-sel':''}" data-id="${t.id}">
+      const tcRowCls=t.cor?' tc-cor':'', tcRowStyle=t.cor?` style="--tc:${t.cor}"`:'' ;
+      return `<tr class="lst-row${sel.has(t.id)?' lst-sel':''}${tcRowCls}" data-id="${t.id}"${tcRowStyle}>
         <td class="lst-chk" style="text-align:center"><input type="checkbox" class="lst-cb" data-id="${t.id}" ${checked} onclick="event.stopPropagation()"></td>
         <td class="lst-prio">${PR[t.prioridade||'media']}</td>
         <td><div class="lst-titulo">${this._esc(t.titulo)}</div>${descPreview}</td>
@@ -6846,6 +6875,7 @@ const Tarefas = {
       <label class="pf-l">Etiqueta / Categoria<input id="tf-cat" class="pf-in" list="tf-cats" value="${e(t&&t.categoria)}" placeholder="Ex: Estoque, Ads"></label>
       <label class="pf-l">Recorrência<select id="tf-rec" class="pf-in">${opR('none','Não repete')}${opR('diaria','Diária')}${opR('semanal','Semanal')}${opR('mensal','Mensal')}</select></label>
       <label class="pf-l pf-full">Produtos vinculados (SKU)<input id="tf-sku" class="pf-in" list="tf-skus" value="${e(t&&t.sku)}" placeholder="Um ou mais SKUs separados por vírgula"></label>
+      <div class="pf-l pf-full"><span style="font-size:12px;font-weight:600;display:block;margin-bottom:6px">Cor de destaque</span><div class="tc-row" id="tf-tc-row">${tcSwatches(t&&t.cor||'')}</div><input type="hidden" id="tf-tc" value="${e(t&&t.cor||'')}"></div>
     </div>
     <datalist id="tf-cats">${cats.map(c=>`<option value="${e(c)}">`).join('')}</datalist>
     <datalist id="tf-skus">${prods.map(p=>`<option value="${e(p.sku)}">${e(p.produto)}</option>`).join('')}</datalist>
@@ -6858,6 +6888,8 @@ const Tarefas = {
     document.getElementById('tf-save').onclick=()=>this._saveTask(id);
     const del=document.getElementById('tf-del'); if(del) del.onclick=()=>this._delTask(id);
     const tit=document.getElementById('tf-tit'); if(tit) setTimeout(()=>tit.focus(),60);
+    const tcRow=document.getElementById('tf-tc-row'); const tcInp=document.getElementById('tf-tc');
+    if(tcRow&&tcInp) tcRow.onclick=ev=>{ const sw=ev.target.closest('.tc-swatch'); if(!sw) return; tcInp.value=sw.dataset.tc||''; tcRow.querySelectorAll('.tc-swatch').forEach(s=>s.classList.toggle('ativo',s===sw)); };
   },
   async _saveTask(id){
     const g=i=>(document.getElementById(i)||{}).value||'';
@@ -6866,7 +6898,7 @@ const Tarefas = {
     if(!titulo){ if(err){err.textContent='Dê um título à tarefa.';err.style.display='block';} return; }
     const checklist=[...document.querySelectorAll('#tf-cl-list .tf-cl-row')].map(r=>({ id:r.dataset.id, txt:r.querySelector('.tf-cl-txt').value.trim(), done:r.querySelector('.tf-cl-done').checked })).filter(c=>c.txt);
     const newStatus=g('tf-status')||'todo';
-    const data={ titulo, descricao:g('tf-desc').trim(), prazo:g('tf-prazo'), status:newStatus, prioridade:g('tf-prio')||'media', categoria:g('tf-cat').trim(), recorrencia:g('tf-rec')||'none', sku:g('tf-sku').split(',').map(x=>x.trim()).filter(Boolean).filter((x,i,a)=>a.indexOf(x)===i).join(', '), checklist };
+    const data={ titulo, descricao:g('tf-desc').trim(), prazo:g('tf-prazo'), status:newStatus, prioridade:g('tf-prio')||'media', categoria:g('tf-cat').trim(), recorrencia:g('tf-rec')||'none', sku:g('tf-sku').split(',').map(x=>x.trim()).filter(Boolean).filter((x,i,a)=>a.indexOf(x)===i).join(', '), checklist, cor:g('tf-tc') };
     let t=id?this.list().find(x=>x.id===id):null;
     if(t){Object.assign(t,data);}
     else{State.tarefas=State.tarefas||[];State.tarefas.push(Object.assign({id:U.uid(),status:'todo',criadoEm:this._today(),concluidoEm:null},data));}
