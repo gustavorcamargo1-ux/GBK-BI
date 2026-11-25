@@ -4796,7 +4796,7 @@ const Pricing = {
         } else if(val!==''&&p.custo>0){
           const r=this.calc(cfg,p.custo,+val,this._ov(p.sku,m));
           const mc=r.margemPct>=alvo?'mg-pos':r.margemPct>=0?'mg-warn':'mg-neg';
-          margemLine=`<div class="mg-margem ${mc}">${U.pct(r.margemPct)} <span style="font-weight:400;font-size:10.5px;color:var(--txt-3)">(sim · ${U.brl(r.margem||0)})</span></div>
+          margemLine=`<div class="mg-margem ${mc}">${U.pct(r.margemPct)} <span style="font-weight:400;font-size:10.5px;color:var(--txt-3)">(Simulação · ${U.brl(r.margem||0)})</span></div>
           <div class="mg-hist">${!_vend[p.sku]?'Sem vendas neste canal':''}</div>`;
         }
         return `<td class="mg-cell ${this._mkClass(m)}" data-label="${m}">
