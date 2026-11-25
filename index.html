@@ -382,8 +382,28 @@ table.dataTable tbody tr:hover{background:var(--panel-2) !important}
   display:grid;place-items:center;z-index:100;padding:20px;animation:fade .2s ease}
 .modal-box{background:var(--panel);border:1px solid var(--line);border-radius:18px;width:100%;max-width:520px;
   box-shadow:var(--shadow);max-height:90vh;display:flex;flex-direction:column;overflow:hidden}
-.modal-box.wide{max-width:780px}
+.modal-box.wide{max-width:860px}
+.modal-box.raio-x{max-width:900px}
 .modal-head{display:flex;align-items:center;justify-content:space-between;padding:18px 22px;border-bottom:1px solid var(--line)}
+
+/* ── Raio-X do produto ── */
+.rx-kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px}
+.rx-kpi{background:var(--panel-2);border:1px solid var(--line);border-radius:10px;padding:10px 14px;display:flex;flex-direction:column;gap:4px}
+.rx-kpi label{font-size:11px;color:var(--txt-3);font-weight:500;text-transform:uppercase;letter-spacing:.4px;white-space:nowrap}
+.rx-kpi b{font-size:17px;font-weight:700;color:var(--txt-1);line-height:1.1}
+.rx-sec{margin-bottom:18px}
+.rx-sec h4{font-size:13px;font-weight:700;color:var(--txt-1);margin-bottom:8px;display:flex;align-items:center;gap:6px;border-bottom:1px solid var(--line);padding-bottom:6px}
+.rx-chart{display:flex;align-items:flex-end;gap:4px;height:90px;padding:0 2px;overflow-x:auto}
+.rx-bar-wrap{display:flex;flex-direction:column;align-items:center;gap:3px;min-width:32px;flex:1;cursor:default}
+.rx-bar{background:var(--brand-2,#4A78C2);border-radius:4px 4px 0 0;width:100%;transition:opacity .15s}
+.rx-bar-neg{background:#E5484D}
+.rx-bar:hover{opacity:.75}
+.rx-bar-lbl{font-size:9px;color:var(--txt-3);white-space:nowrap;text-align:center}
+/* tabelas do raio-X com colunas bem dimensionadas */
+.rx-sec .simple-table th,.rx-sec .simple-table td{padding:7px 10px;font-size:12.5px;white-space:nowrap}
+.rx-sec .simple-table{width:100%;table-layout:auto}
+/* modal-body do raio-X sem clip lateral */
+.mads-modal-card.rx-wide .mads-modal-body{padding:18px 22px;overflow-x:auto}
 .modal-head h3{font-size:16px;display:flex;align-items:center;gap:9px}
 .modal-head h3 i{color:var(--brand-2)}
 .modal-body{padding:20px 22px;overflow-y:auto}
@@ -529,6 +549,8 @@ body.role-viewer .cx-in,body.role-viewer .cx-del,body.role-viewer [data-cx-add]{
 .est-tbl .est-low{color:#E0A100;font-weight:600}
 .est-tbl .est-zero{color:#E5484D;font-weight:700}
 .est-tbl .est-nd{color:var(--txt-3)}
+.est-tbl .est-custo{color:#E5484D;font-weight:600}
+.est-tbl .est-pverp{color:#4A78C2;font-weight:600}
 /* Badge de status na tabela de estoque */
 .sbadge{display:inline-flex;align-items:center;gap:3px;padding:2px 7px;border-radius:999px;font-size:11px;font-weight:600;white-space:nowrap}
 .sbadge.ok{background:rgba(48,164,108,.15);color:#30A46C}
@@ -674,6 +696,7 @@ tr.mads-row:hover td{background:var(--panel-2)}
 .mads-modal{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:200;display:none;align-items:flex-start;justify-content:center;padding:24px 14px;overflow-y:auto}
 .mads-modal.show{display:flex}
 .mads-modal-card{background:var(--panel);border:1px solid var(--line);border-radius:16px;max-width:640px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.4);margin:auto}
+.mads-modal-card.rx-wide{max-width:920px}
 .mads-modal-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:15px 20px;border-bottom:1px solid var(--line)}
 .mads-modal-head h3{font-size:16px;line-height:1.3}
 .mads-modal-x{background:none;border:none;font-size:26px;line-height:1;color:var(--txt-3);cursor:pointer;padding:0 4px}
@@ -4677,8 +4700,8 @@ const Pricing = {
         <td class="mono" style="font-size:11px;color:var(--txt-3)">${p.ean||'—'}</td>
         <td class="col-nome pricing-openprod" data-sku="${p.sku}" style="cursor:pointer" title="Ver raio-X">${p.produto||''}</td>
         <td style="font-size:12px;color:var(--txt-2)">${p.marca||'—'}</td>
-        <td class="col-num ${p.custo>0?'':'est-zero'}">${p.custo>0?U.brl(p.custo):'—'}</td>
-        <td class="col-num">${p.pv>0?U.brl(p.pv):'—'}</td>
+        <td class="col-num est-custo">${p.custo>0?U.brl(p.custo):'<span class="est-zero">—</span>'}</td>
+        <td class="col-num est-pverp">${p.pv>0?U.brl(p.pv):'—'}</td>
         <td class="col-num ${estBadge==='zero'?'est-zero':estBadge==='low'?'est-low':p.estoque!=null?'est-ok':'est-nd'}">${p.estoque!=null?p.estoque:'—'}</td>
         <td class="col-num est-nd">${p.estoqueMini!=null?p.estoqueMini:'—'}</td>
         <td class="col-num est-nd">${p.peso!=null?p.peso.toFixed(3):'—'}</td>
@@ -4979,10 +5002,11 @@ const Pricing = {
   },
   _discardWork(){ this._work=null; this._dirty=false; this.renderTable(); },
   _nextSku(){ const mx=(State.raw.erp||[]).reduce((m,e)=>{ const n=parseInt(e.sku,10); return (isFinite(n)&&n>m)?n:m; },0); return mx>0?String(mx+1):''; },
-  _modal(title,html){
+  _modal(title,html,opts={}){
     let ov=document.getElementById('pricing-modal');
     if(!ov){ ov=document.createElement('div'); ov.id='pricing-modal'; ov.className='mads-modal'; document.body.appendChild(ov); }
-    ov.innerHTML=`<div class="mads-modal-card"><div class="mads-modal-head"><h3>${title}</h3><button class="mads-modal-x" aria-label="Fechar">&times;</button></div><div class="mads-modal-body">${html}</div></div>`;
+    const extraCls=opts.wide?'rx-wide':'';
+    ov.innerHTML=`<div class="mads-modal-card ${extraCls}"><div class="mads-modal-head"><h3>${title}</h3><button class="mads-modal-x" aria-label="Fechar">&times;</button></div><div class="mads-modal-body">${html}</div></div>`;
     ov.classList.add('show');
     ov.onclick=e=>{ if(e.target===ov||e.target.closest('.mads-modal-x')) ov.classList.remove('show'); };
   },
@@ -5420,8 +5444,9 @@ const Pricing = {
         <td class="num" style="font-size:11px;color:var(--txt-3)">${U.pct(taxaPct)}</td>
       </tr>`;
     }).join('');
+    const fmtDt=d=>{ if(!d) return '—'; const p=(''+d).split('-'); return p.length===3?`${p[2]}/${p[1]}/${p[0].slice(2)}`:d; };
     const ult=sales.slice().sort((a,b)=>(''+(b.data||'')).localeCompare(''+(a.data||''))).slice(0,20).map(v=>`<tr>
-      <td>${v.data||'—'}</td>
+      <td style="white-space:nowrap">${fmtDt(v.data)}</td>
       <td>${U.mktBadge(v.marketplace,v.loja)}</td>
       <td class="num">${v.qtd}</td>
       <td class="num">${U.brl(v.valorBruto||0)}</td>
@@ -5463,7 +5488,7 @@ const Pricing = {
         </div>
       </div>
       <button id="raiox-calc" class="primary-btn" style="width:100%;margin-top:12px"><i class="fa-solid fa-calculator"></i> Abrir na calculadora de preço</button>`;
-    this._modal(nome, html);
+    this._modal(nome, html, {wide:true});
     const b=document.getElementById('raiox-calc'); if(b) b.onclick=closeAndCalc;
   },
   _openInCalc(sku){
