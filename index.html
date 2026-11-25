@@ -1061,6 +1061,18 @@ textarea#tf-desc{min-height:170px !important;height:170px;max-height:50vh;resize
 .sim-nota{font-size:11px;color:var(--txt-3);margin-top:8px;padding:6px 10px;background:var(--panel-2);border-radius:7px;border-left:3px solid var(--brand)}
 .sim-pct.pos{color:var(--green)}.sim-pct.neg{color:var(--red)}.sim-pct.warn-t{color:#E0A100}
 
+/* ===== banner tarefas atrasadas ===== */
+#atrasadas-banner{position:fixed;bottom:18px;right:18px;z-index:9999;display:flex;align-items:center;gap:10px;background:#1e0a0a;border:1px solid #E5484D;border-left:4px solid #E5484D;border-radius:10px;padding:10px 14px;box-shadow:0 4px 20px rgba(229,72,77,.35);color:#fff;font-size:13px;min-width:240px;max-width:320px;animation:bannerIn .25s ease}
+#atrasadas-banner.hidden{display:none}
+@keyframes bannerIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+#atrasadas-banner .ab-icon{font-size:18px;flex-shrink:0}
+#atrasadas-banner .ab-txt{flex:1;line-height:1.3}
+#atrasadas-banner .ab-txt strong{display:block;font-size:13.5px;font-weight:700}
+#atrasadas-banner .ab-txt span{font-size:11.5px;color:rgba(255,255,255,.7)}
+#atrasadas-banner .ab-btn{background:#E5484D;color:#fff;border:none;border-radius:6px;padding:5px 10px;font-size:12px;cursor:pointer;white-space:nowrap;font-weight:600}
+#atrasadas-banner .ab-btn:hover{background:#c73d41}
+#atrasadas-banner .ab-close{background:none;border:none;color:rgba(255,255,255,.5);font-size:16px;cursor:pointer;padding:0 2px;line-height:1}
+#atrasadas-banner .ab-close:hover{color:#fff}
 </style>
 </head>
 <body>
@@ -1080,6 +1092,12 @@ textarea#tf-desc{min-height:170px !important;height:170px;max-height:50vh;resize
 </div>
 
 <!-- ============ OVERLAY DE CARREGAMENTO ============ -->
+<div id="atrasadas-banner" class="hidden">
+  <span class="ab-icon">🔴</span>
+  <div class="ab-txt"><strong id="ab-titulo">Tarefas atrasadas</strong><span id="ab-sub"></span></div>
+  <button class="ab-btn" onclick="AtrasadasBanner.verTarefas()">Ver tarefas</button>
+  <button class="ab-close" onclick="AtrasadasBanner.dispensar()" title="Fechar">×</button>
+</div>
 <div id="loader" class="loader hidden">
   <div class="loader-card">
     <div class="loader-box"><i class="fa-solid fa-box-open"></i></div>
@@ -6295,6 +6313,32 @@ const MercadoAds = {
   },
 };
 
+const AtrasadasBanner = {
+  _dispensado: false,
+  update(){
+    const banner=document.getElementById('atrasadas-banner'); if(!banner) return;
+    if(this._dispensado){ banner.classList.add('hidden'); return; }
+    const hoje=new Date().toISOString().slice(0,10);
+    const atrasadas=(State.tarefas||[]).filter(t=>t.status!=='done'&&t.prazo&&t.prazo<hoje);
+    const n=atrasadas.length;
+    if(n===0){ banner.classList.add('hidden'); return; }
+    const titulo=document.getElementById('ab-titulo');
+    const sub=document.getElementById('ab-sub');
+    if(titulo) titulo.textContent=n===1?'1 tarefa atrasada':`${n} tarefas atrasadas`;
+    if(sub){
+      const nomes=atrasadas.slice(0,2).map(t=>t.titulo).join(', ');
+      sub.textContent=nomes+(atrasadas.length>2?` e mais ${atrasadas.length-2}…`:'');
+    }
+    banner.classList.remove('hidden');
+  },
+  dispensar(){ this._dispensado=true; const b=document.getElementById('atrasadas-banner'); if(b) b.classList.add('hidden'); },
+  verTarefas(){
+    this.dispensar();
+    // navega para tarefas e filtra atrasadas
+    const btn=document.querySelector('[data-view="tarefas"]'); if(btn) btn.click();
+    setTimeout(()=>{ if(typeof Tarefas!=='undefined'){ Tarefas._listaFiltro='todo'; Tarefas._view='lista'; Tarefas.render(); } },200);
+  }
+};
 const TAREFA_PRIO = { alta:{l:'Alta'}, media:{l:'Média'}, baixa:{l:'Baixa'} };
 const TC_CORES = [
   {v:'',    label:'Sem cor'},
@@ -6355,7 +6399,8 @@ const Tarefas = {
     return {cls:'noprazo',dot:'🟢',txt:`Em ${Math.round(d)}d`};
   },
   badgeCount(){ const hoje=this._today(); return this.list().filter(t=>{ if(t.status==='done'||!t.prazo) return false; const d=(new Date(t.prazo+'T00:00:00')-new Date(hoje+'T00:00:00'))/86400000; return d<2; }).length; },
-  updateBadge(){ const b=document.getElementById('tarefa-badge'); if(!b) return; const n=this.badgeCount(); b.textContent=n; b.classList.toggle('hidden',n===0); },
+  atrasadasCount(){ const hoje=this._today(); return this.list().filter(t=>t.status!=='done'&&t.prazo&&t.prazo<hoje).length; },
+  updateBadge(){ const b=document.getElementById('tarefa-badge'); if(!b) return; const n=this.badgeCount(); b.textContent=n; b.classList.toggle('hidden',n===0); AtrasadasBanner.update(); },
 
   /* ---- main render router ---- */
   render(){
@@ -9363,7 +9408,7 @@ const App = {
     const pm=await DB.get('config','prodmeta'); State.prodmeta=(pm&&pm.data)?pm.data:{};
     const cx=await DB.get('config','caixa'); State.caixa=(cx&&cx.data)?cx.data:Caixa.seed();
     const am=await DB.get('config','adsml'); State.adsml=(am&&am.data)?am.data:null;
-    const tk=await DB.get('config','tarefas'); State.tarefas=(tk&&tk.data)?tk.data:[]; if(typeof Tarefas!=='undefined') Tarefas.updateBadge();
+    const tk=await DB.get('config','tarefas'); State.tarefas=(tk&&tk.data)?tk.data:[]; if(typeof Tarefas!=='undefined'){ AtrasadasBanner._dispensado=false; Tarefas.updateBadge(); }
     const rot=await DB.get('config','rotina'); State.rotina=(rot&&rot.data)?rot.data:null;
     const rotck=await DB.get('config','rotina_check'); State.rotina_check=(rotck&&rotck.data)?rotck.data:{};
     const vb=await DB.get('config','viab'); State.viab=(vb&&vb.data)?vb.data:[];
