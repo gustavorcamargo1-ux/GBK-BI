@@ -5537,7 +5537,7 @@ const Pricing = {
       } else {
         const r=this.calc(this.cfg(m),custo,v,this._ov(sku,m));
         const mc=r.margemPct>=alvo?'mg-pos':r.margemPct>=0?'mg-warn':'mg-neg';
-        cell.innerHTML=`<div class="mg-margem ${mc}">${U.pct(r.margemPct)} <span style="font-weight:400;font-size:10.5px;color:var(--txt-3)">(sim · ${U.brl(r.margem||0)})</span></div>`;
+        cell.innerHTML=`<div class="mg-margem ${mc}">${U.pct(r.margemPct)} <span style="font-weight:400;font-size:10.5px;color:var(--txt-3)">(Simulação · ${U.brl(r.margem||0)})</span></div>`;
       }
     }
   },
