@@ -514,6 +514,49 @@ body.role-viewer .cx-in,body.role-viewer .cx-del,body.role-viewer [data-cx-add]{
 .ptab-off{display:none!important}
 /* ===== Fim abas ===== */
 
+/* ===== Sub-tabs do Catálogo ===== */
+.cat-subtabs{display:flex;gap:6px;margin-bottom:12px}
+.cat-subtab{padding:5px 14px;border:1px solid var(--line);border-radius:20px;background:transparent;color:var(--txt-2);font-size:12.5px;cursor:pointer;font-weight:500;transition:background .15s,color .15s}
+.cat-subtab:hover{background:var(--panel-2);color:var(--txt-1)}
+.cat-subtab.active{background:var(--brand-grad,#F26522);color:#fff;border-color:transparent;font-weight:700}
+.cat-subpane{display:block}
+.cat-subpane.off{display:none!important}
+/* Tabela de estoque */
+.est-tbl th,.est-tbl td{padding:7px 10px;font-size:13px}
+.est-tbl .col-nome{min-width:200px;white-space:normal;line-height:1.3}
+.est-tbl .col-num{text-align:right;font-variant-numeric:tabular-nums}
+.est-tbl .est-ok{color:var(--pos,#30A46C);font-weight:600}
+.est-tbl .est-low{color:#E0A100;font-weight:600}
+.est-tbl .est-zero{color:#E5484D;font-weight:700}
+.est-tbl .est-nd{color:var(--txt-3)}
+/* Badge de status na tabela de estoque */
+.sbadge{display:inline-flex;align-items:center;gap:3px;padding:2px 7px;border-radius:999px;font-size:11px;font-weight:600;white-space:nowrap}
+.sbadge.ok{background:rgba(48,164,108,.15);color:#30A46C}
+.sbadge.low{background:rgba(224,161,0,.18);color:#B07D00}
+.sbadge.zero{background:rgba(229,72,77,.15);color:#E5484D}
+.sbadge.nd{background:var(--panel-2);color:var(--txt-3)}
+.sbadge.scusto{background:rgba(229,72,77,.15);color:#E5484D}
+.sbadge.svenda{background:var(--panel-2);color:var(--txt-3)}
+.sbadge.smeta{background:rgba(224,161,0,.18);color:#B07D00}
+/* Badges antigos no nome do produto — manter compatibilidade */
+.pbadges{display:inline-flex;flex-wrap:wrap;gap:3px;margin-left:4px;vertical-align:middle}
+.pbadge{display:inline-block;padding:1px 6px;border-radius:999px;font-size:10px;font-weight:600}
+.pb-red{background:rgba(229,72,77,.15);color:#E5484D}
+.pb-grey{background:var(--panel-2);color:var(--txt-3);border:1px solid var(--line)}
+.pb-yel{background:rgba(224,161,0,.15);color:#B07D00}
+/* Tabela de margens melhorada */
+.mg-cell{vertical-align:top;min-width:120px;padding:6px 8px!important}
+.mg-preco-wrap{display:flex;align-items:center;gap:4px}
+.mg-preco-lbl{font-size:9.5px;font-weight:700;padding:1px 5px;border-radius:4px;text-transform:uppercase;letter-spacing:.3px;white-space:nowrap}
+.mg-lbl-erp{background:rgba(74,120,194,.15);color:#4A78C2}
+.mg-lbl-custom{background:rgba(248,113,113,.18);color:#dc2626}
+.mg-margem{font-size:12px;font-weight:700;margin-top:4px}
+.mg-hist{font-size:10.5px;color:var(--txt-3);margin-top:2px;line-height:1.3}
+.mg-pos{color:#30A46C}
+.mg-warn{color:#E0A100}
+.mg-neg{color:#E5484D}
+.mg-nd{color:var(--txt-3);font-size:11px}
+
 .pricing-toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:6px}
 .pricing-toolbar .pricing-search{flex:1;min-width:200px}
 .pricing-brand{padding:9px 11px;border-radius:9px;border:1px solid var(--line);background:var(--panel-2);color:var(--txt-1);font-size:13.5px;max-width:220px}
@@ -1458,27 +1501,55 @@ textarea#tf-desc{min-height:170px !important;height:170px;max-height:50vh;resize
       </div>
       <div class="ptab-pane" id="ptab-cat">
 <div class="panel">
-        <div class="panel-head"><h3><i class="fa-solid fa-table-list"></i> Produtos · preços e margens por canal</h3></div>
-        <div class="pricing-toolbar">
-          <input type="text" id="pricing-search" class="pricing-search" placeholder="Buscar SKU, EAN ou produto…">
-          <select id="pricing-brand" class="pricing-brand"><option value="">Todas as marcas</option></select>
-          <label class="pricing-chk"><input type="checkbox" id="pricing-belowtarget"> Só abaixo da meta <span id="pricing-meta-lbl" class="meta-lbl"></span></label>
-          <select id="pricing-belowch" class="pricing-brand" title="Em qual canal a margem está abaixo da meta"><option value="">em qualquer canal</option><option value="Shopee">só na Shopee</option><option value="Mercado Livre">só no Mercado Livre</option><option value="Magalu">só no Magalu</option><option value="TikTok Shop">só no TikTok Shop</option></select>
-          <label class="pricing-chk"><input type="checkbox" id="pricing-haspreco"> Só com desconto</label>
-          <label class="pricing-chk"><input type="checkbox" id="pricing-noean"> Só sem EAN</label>
-          <button id="pricing-desc" class="ghost-btn sm"><i class="fa-solid fa-tags"></i> Aplicar desconto</button>
-          <button id="pricing-bulk-edit" class="ghost-btn sm" style="display:none"><i class="fa-solid fa-pen-to-square"></i> Editar selecionados (<span id="pricing-bulk-count">0</span>)</button>
-          <button id="pricing-bulk-price" class="ghost-btn sm" style="display:none"><i class="fa-solid fa-calculator"></i> Precificar selecionados (<span id="pricing-bulk-price-count">0</span>)</button>
-          <button id="pricing-add" class="primary-btn sm"><i class="fa-solid fa-plus"></i> Adicionar produto</button>
+        <div class="panel-head">
+          <h3><i class="fa-solid fa-table-list"></i> Produtos</h3>
+          <div class="cat-subtabs">
+            <button class="cat-subtab active" data-cst="estoque"><i class="fa-solid fa-boxes-stacked"></i> Catálogo &amp; Estoque</button>
+            <button class="cat-subtab" data-cst="margens"><i class="fa-solid fa-chart-line"></i> Margens por Canal</button>
+          </div>
         </div>
-        <p class="muted" style="margin:2px 0 10px">Edite qualquer preço para ver a margem ao vivo (as cores seguem sua margem alvo). Nada é gravado até clicar em <b>Salvar preços</b>.</p>
-        <div id="pricing-save-banner" class="save-banner hidden">
-          <span><i class="fa-solid fa-pen"></i> Você tem preços alterados não salvos.</span>
-          <div><button id="pricing-discard" class="ghost-btn sm">Descartar</button>
-          <button id="pricing-save" class="primary-btn sm"><i class="fa-solid fa-floppy-disk"></i> Salvar preços</button></div>
+
+        <!-- ═══ SUB-VIEW: CATÁLOGO & ESTOQUE ═══ -->
+        <div class="cat-subpane" id="cst-estoque">
+          <div class="pricing-toolbar" style="margin-bottom:8px">
+            <input type="text" id="est-search" class="pricing-search" placeholder="Buscar SKU, EAN ou produto…" oninput="Pricing._renderEst()">
+            <select id="est-brand" class="pricing-brand" onchange="Pricing._renderEst()"><option value="">Todas as marcas</option></select>
+            <select id="est-filter" class="pricing-brand" onchange="Pricing._renderEst()">
+              <option value="">Todos os status</option>
+              <option value="zero">Estoque zero</option>
+              <option value="low">Estoque baixo</option>
+              <option value="scusto">Sem custo</option>
+              <option value="svenda">Sem venda</option>
+              <option value="noean">Sem EAN</option>
+            </select>
+            <button id="pricing-add" class="primary-btn sm"><i class="fa-solid fa-plus"></i> Adicionar produto</button>
+          </div>
+          <div id="est-kpis" style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px"></div>
+          <div class="table-wrap"><table id="est-table" class="simple-table est-tbl"></table></div>
+          <div id="est-pager" class="pager"></div>
         </div>
-        <div class="table-wrap"><table id="pricing-table" class="simple-table pricing-tbl"></table></div>
-        <div id="pricing-pager" class="pager"></div>
+
+        <!-- ═══ SUB-VIEW: MARGENS POR CANAL ═══ -->
+        <div class="cat-subpane off" id="cst-margens">
+          <div class="pricing-toolbar">
+            <input type="text" id="pricing-search" class="pricing-search" placeholder="Buscar SKU, EAN ou produto…">
+            <select id="pricing-brand" class="pricing-brand"><option value="">Todas as marcas</option></select>
+            <label class="pricing-chk"><input type="checkbox" id="pricing-belowtarget"> Só abaixo da meta <span id="pricing-meta-lbl" class="meta-lbl"></span></label>
+            <select id="pricing-belowch" class="pricing-brand" title="Em qual canal a margem está abaixo da meta"><option value="">em qualquer canal</option><option value="Shopee">só na Shopee</option><option value="Mercado Livre">só no Mercado Livre</option><option value="Magalu">só no Magalu</option><option value="TikTok Shop">só no TikTok Shop</option></select>
+            <label class="pricing-chk"><input type="checkbox" id="pricing-haspreco"> Só com desconto</label>
+            <button id="pricing-desc" class="ghost-btn sm"><i class="fa-solid fa-tags"></i> Aplicar desconto</button>
+            <button id="pricing-bulk-edit" class="ghost-btn sm" style="display:none"><i class="fa-solid fa-pen-to-square"></i> Editar sel. (<span id="pricing-bulk-count">0</span>)</button>
+            <button id="pricing-bulk-price" class="ghost-btn sm" style="display:none"><i class="fa-solid fa-calculator"></i> Precificar sel. (<span id="pricing-bulk-price-count">0</span>)</button>
+          </div>
+          <p class="muted" style="margin:2px 0 8px;font-size:12px"><i class="fa-solid fa-circle-info" style="color:var(--brand)"></i> <b>PV ERP</b> = preço cadastrado no Tiny. <b>Personalizado</b> = preço específico neste canal. Edite qualquer campo para simular — nada salvo até <b>Salvar preços</b>.</p>
+          <div id="pricing-save-banner" class="save-banner hidden">
+            <span><i class="fa-solid fa-pen"></i> Você tem preços alterados não salvos.</span>
+            <div><button id="pricing-discard" class="ghost-btn sm">Descartar</button>
+            <button id="pricing-save" class="primary-btn sm"><i class="fa-solid fa-floppy-disk"></i> Salvar preços</button></div>
+          </div>
+          <div class="table-wrap"><table id="pricing-table" class="simple-table pricing-tbl"></table></div>
+          <div id="pricing-pager" class="pager"></div>
+        </div>
       </div>
       </div>
 <div class="ptab-pane ptab-off" id="ptab-price-audit">
@@ -4523,25 +4594,134 @@ const Pricing = {
     });
     const sv=document.getElementById('pricing-calc-save'); if(sv) sv.onclick=()=>this._saveCalc(p.sku);
   },
+  /* ── Tabela Catálogo & Estoque ── */
+  _renderEst(){
+    const tb=document.getElementById('est-table'); if(!tb) return;
+    this._fillBrands('est-brand');
+    const q=(document.getElementById('est-search')||{value:''}).value.toLowerCase().trim();
+    const brand=(document.getElementById('est-brand')||{value:''}).value;
+    const filt=(document.getElementById('est-filter')||{value:''}).value;
+    const alvo=this.target();
+    const _vend={}; (State.enriched||[]).forEach(v=>{ const sk=''+v.sku; _vend[sk]=(_vend[sk]||0)+(v.qtd||0); });
+    let prods=this.productList().slice();
+    if(q) prods=prods.filter(p=>(p.sku+' '+(p.ean||'')+' '+p.produto).toLowerCase().includes(q));
+    if(brand) prods=prods.filter(p=>p.marca===brand);
+    if(filt==='zero') prods=prods.filter(p=>p.estoque===0);
+    else if(filt==='low') prods=prods.filter(p=>p.estoque!=null&&p.estoque>0&&p.estoqueMini!=null&&p.estoque<=p.estoqueMini);
+    else if(filt==='scusto') prods=prods.filter(p=>!(p.custo>0));
+    else if(filt==='svenda') prods=prods.filter(p=>!_vend[p.sku]);
+    else if(filt==='noean') prods=prods.filter(p=>!((''+(p.ean||'')).trim()));
+    // KPIs rápidos
+    const all=this.productList();
+    const kpiEl=document.getElementById('est-kpis');
+    if(kpiEl){
+      const nZero=all.filter(p=>p.estoque===0).length;
+      const nLow=all.filter(p=>p.estoque!=null&&p.estoque>0&&p.estoqueMini!=null&&p.estoque<=p.estoqueMini).length;
+      const nSemCusto=all.filter(p=>!(p.custo>0)).length;
+      const nSemVenda=all.filter(p=>!_vend[p.sku]).length;
+      const nSemEan=all.filter(p=>!((''+(p.ean||'')).trim())).length;
+      kpiEl.innerHTML=`
+        <div class="sbadge zero" style="cursor:pointer;padding:4px 10px;border-radius:8px;font-size:12px" onclick="document.getElementById('est-filter').value='zero';Pricing._renderEst()">📦 Estoque zero: <b>${nZero}</b></div>
+        <div class="sbadge low" style="cursor:pointer;padding:4px 10px;border-radius:8px;font-size:12px" onclick="document.getElementById('est-filter').value='low';Pricing._renderEst()">⚠️ Estoque baixo: <b>${nLow}</b></div>
+        <div class="sbadge scusto" style="cursor:pointer;padding:4px 10px;border-radius:8px;font-size:12px" onclick="document.getElementById('est-filter').value='scusto';Pricing._renderEst()">💰 Sem custo: <b>${nSemCusto}</b></div>
+        <div class="sbadge svenda" style="cursor:pointer;padding:4px 10px;border-radius:8px;font-size:12px" onclick="document.getElementById('est-filter').value='svenda';Pricing._renderEst()">🛒 Sem venda: <b>${nSemVenda}</b></div>
+        <div class="sbadge nd" style="cursor:pointer;padding:4px 10px;border-radius:8px;font-size:12px" onclick="document.getElementById('est-filter').value='noean';Pricing._renderEst()">🔖 Sem EAN: <b>${nSemEan}</b></div>
+        <div class="sbadge ok" style="padding:4px 10px;border-radius:8px;font-size:12px">Total: <b>${all.length}</b></div>`;
+    }
+    // Ordenação
+    const sc=this._sortEst||{col:'sku',dir:-1};
+    prods.sort((a,b)=>{
+      let x,y;
+      if(sc.col==='sku'){ x=parseFloat(a.sku)||0; y=parseFloat(b.sku)||0; }
+      else if(sc.col==='produto'){ x=(a.produto||'').toLowerCase(); y=(b.produto||'').toLowerCase(); }
+      else if(sc.col==='marca'){ x=(a.marca||'').toLowerCase(); y=(b.marca||'').toLowerCase(); }
+      else if(sc.col==='custo'){ x=a.custo||0; y=b.custo||0; }
+      else if(sc.col==='pv'){ x=a.pv||0; y=b.pv||0; }
+      else if(sc.col==='estoque'){ x=a.estoque!=null?a.estoque:Infinity; y=b.estoque!=null?b.estoque:Infinity; }
+      else if(sc.col==='mini'){ x=a.estoqueMini!=null?a.estoqueMini:Infinity; y=b.estoqueMini!=null?b.estoqueMini:Infinity; }
+      else if(sc.col==='peso'){ x=a.peso!=null?a.peso:Infinity; y=b.peso!=null?b.peso:Infinity; }
+      else { x=0; y=0; }
+      if(x<y) return -sc.dir; if(x>y) return sc.dir; return 0;
+    });
+    const perPage=60, totalN=prods.length, pages=Math.max(1,Math.ceil(totalN/perPage));
+    if((this._pageEst||1)>pages) this._pageEst=1;
+    const pg=this._pageEst||1;
+    const pageProds=prods.slice((pg-1)*perPage, pg*perPage);
+    const _a=c=>sc.col===c?(sc.dir>0?' ▲':' ▼'):'';
+    const _th=(col,lbl,extra='')=>`<th class="est-sort${extra}" data-col="${col}" style="cursor:pointer;user-select:none">${lbl}${_a(col)}</th>`;
+    const head=`<tr>
+      ${_th('sku','SKU',' col-num')}
+      <th>EAN</th>
+      ${_th('produto','Produto',' col-nome')}
+      ${_th('marca','Marca')}
+      ${_th('custo','Custo',' col-num')}
+      ${_th('pv','PV ERP',' col-num')}
+      ${_th('estoque','Estoque',' col-num')}
+      ${_th('mini','Est.Mín',' col-num')}
+      ${_th('peso','Peso(kg)',' col-num')}
+      <th>Status</th>
+    </tr>`;
+    const body=pageProds.map(p=>{
+      const hasVenda=!!_vend[p.sku];
+      const estBadge=p.estoque===null?'nd':(p.estoque===0?'zero':(p.estoqueMini!=null&&p.estoque<=p.estoqueMini?'low':'ok'));
+      const badges=[];
+      if(estBadge==='zero') badges.push('<span class="sbadge zero">📦 Est.zero</span>');
+      else if(estBadge==='low') badges.push(`<span class="sbadge low">⚠️ Baixo(${p.estoque}/${p.estoqueMini})</span>`);
+      if(!(p.custo>0)) badges.push('<span class="sbadge scusto">💰 Sem custo</span>');
+      if(!hasVenda) badges.push('<span class="sbadge svenda">🛒 Sem venda</span>');
+      if(!((''+(p.ean||'')).trim())) badges.push('<span class="sbadge nd">🔖 Sem EAN</span>');
+      if(!badges.length) badges.push('<span class="sbadge ok">✅ OK</span>');
+      const rowStyle=estBadge==='zero'?'background:rgba(229,72,77,.06)':(estBadge==='low'?'background:rgba(224,161,0,.06)':'');
+      return `<tr style="${rowStyle}">
+        <td class="col-num mono">${p.sku} <button type="button" class="pricing-edit" data-sku="${p.sku}" title="Editar"><i class="fa-solid fa-pen"></i></button></td>
+        <td class="mono" style="font-size:11px;color:var(--txt-3)">${p.ean||'—'}</td>
+        <td class="col-nome pricing-openprod" data-sku="${p.sku}" style="cursor:pointer" title="Ver raio-X">${p.produto||''}</td>
+        <td style="font-size:12px;color:var(--txt-2)">${p.marca||'—'}</td>
+        <td class="col-num ${p.custo>0?'':'est-zero'}">${p.custo>0?U.brl(p.custo):'—'}</td>
+        <td class="col-num">${p.pv>0?U.brl(p.pv):'—'}</td>
+        <td class="col-num ${estBadge==='zero'?'est-zero':estBadge==='low'?'est-low':p.estoque!=null?'est-ok':'est-nd'}">${p.estoque!=null?p.estoque:'—'}</td>
+        <td class="col-num est-nd">${p.estoqueMini!=null?p.estoqueMini:'—'}</td>
+        <td class="col-num est-nd">${p.peso!=null?p.peso.toFixed(3):'—'}</td>
+        <td style="white-space:nowrap">${badges.join(' ')}</td>
+      </tr>`;
+    }).join('');
+    tb.innerHTML=`<thead>${head}</thead><tbody>${body||'<tr><td colspan="10" class="muted" style="text-align:center;padding:20px">Nenhum produto no filtro.</td></tr>'}</tbody>`;
+    tb.querySelectorAll('th.est-sort').forEach(th=>th.onclick=()=>{
+      const c=th.dataset.col;
+      if(this._sortEst&&this._sortEst.col===c) this._sortEst.dir*=-1;
+      else this._sortEst={col:c,dir:(c==='produto'||c==='marca')?1:-1};
+      this._renderEst();
+    });
+    tb.querySelectorAll('td.pricing-openprod').forEach(td=>td.onclick=()=>this._raioX(td.dataset.sku));
+    tb.querySelectorAll('button.pricing-edit').forEach(b=>b.onclick=e=>{ e.stopPropagation(); this._addModal(b.dataset.sku); });
+    // pager
+    const pEl=document.getElementById('est-pager'); if(!pEl) return;
+    if(pages<=1){ pEl.innerHTML=''; return; }
+    let ph=`<div class="pager-row">`;
+    if(pg>1) ph+=`<button class="pager-btn" onclick="Pricing._pageEst=${pg-1};Pricing._renderEst()">‹</button>`;
+    for(let i=1;i<=pages;i++) ph+=`<button class="pager-btn${i===pg?' active':''}" onclick="Pricing._pageEst=${i};Pricing._renderEst()">${i}</button>`;
+    if(pg<pages) ph+=`<button class="pager-btn" onclick="Pricing._pageEst=${pg+1};Pricing._renderEst()">›</button>`;
+    ph+=`</div><div class="pager-info">${(pg-1)*perPage+1}–${Math.min(pg*perPage,totalN)} de ${totalN}</div>`;
+    pEl.innerHTML=ph;
+  },
+  /* ── Tabela Margens por Canal ── */
   renderTable(){
     const tb=document.getElementById('pricing-table'); if(!tb) return;
-    this.__skuStats=null; // invalidar cache de stats por SKU
+    this.__skuStats=null;
     this.__pv=null;
-    this._fillBrands();
+    this._fillBrands('pricing-brand');
     const t=this.target(), alvo=t;
     const _ml=document.getElementById('pricing-meta-lbl'); if(_ml) _ml.textContent=alvo>0?`(${U.pct(alvo)})`:'';
-    const q=(document.getElementById('pricing-search').value||'').toLowerCase().trim();
+    const q=(document.getElementById('pricing-search')||{value:''}).value.toLowerCase().trim();
     const brand=((document.getElementById('pricing-brand')||{}).value)||'';
     const below=((document.getElementById('pricing-belowtarget')||{}).checked)||false;
     const hasP=((document.getElementById('pricing-haspreco')||{}).checked)||false;
-    const noEan=((document.getElementById('pricing-noean')||{}).checked)||false;
     const belowCh=((document.getElementById('pricing-belowch')||{}).value)||'';
     const _bc=document.getElementById('pricing-belowch'); if(_bc) _bc.disabled=!below;
     let prods=this.productList().slice();
     if(q) prods=prods.filter(p=>(p.sku+' '+(p.ean||'')+' '+p.produto).toLowerCase().includes(q));
     if(brand) prods=prods.filter(p=>p.marca===brand);
     if(hasP) prods=prods.filter(p=>this.mkts().some(m=>this._price(p.sku,m)!=null));
-    if(noEan) prods=prods.filter(p=>!((''+(p.ean||'')).trim()));
     this._filteredSkus=prods.map(p=>p.sku);
     if(below) prods=prods.filter(p=>p.custo>0&&(belowCh?[belowCh]:this.mkts()).some(m=>{const pr=this._precoEf(p.sku,m);return pr!=null&&this.calc(this.cfg(m),p.custo,pr,this._ov(p.sku,m)).margemPct<alvo;}));
     const sc=this._sort||{col:'sku',dir:-1};
@@ -4551,66 +4731,77 @@ const Pricing = {
         if(sc.col==='produto') return (p.produto||'').toLowerCase();
         if(sc.col==='marca') return (p.marca||'').toLowerCase();
         if(sc.col==='custo') return p.custo||0;
-        if(sc.col==='estoque') return p.estoque!=null?p.estoque:Infinity;
         if(sc.col.indexOf('mkt:')===0){ if(!(p.custo>0)) return -Infinity; const m=sc.col.slice(4); const pr=this._price(p.sku,m)!=null?this._price(p.sku,m):(p.pv>0?p.pv:this.priceForMargin(this.cfg(m),p.custo,t)); return pr!=null?this.calc(this.cfg(m),p.custo,pr,this._ov(p.sku,m)).margemPct:-Infinity; }
         return 0;
       };
       prods.sort((a,b)=>{ const x=sv(a),y=sv(b); if(x<y) return -sc.dir; if(x>y) return sc.dir; return 0; });
     }
-    const totalN=prods.length, perPage=50, pages=Math.max(1,Math.ceil(totalN/perPage));
+    const totalN=prods.length, perPage=40, pages=Math.max(1,Math.ceil(totalN/perPage));
     if((this._page||1)>pages) this._page=1; const pg=this._page||1;
     prods=prods.slice((pg-1)*perPage,pg*perPage);
     const _sc=this._sort||{col:'sku',dir:-1}; const _a=c=>_sc.col===c?(_sc.dir>0?' ▲':' ▼'):'';
-    const head=`<tr><th style="width:32px"><input type="checkbox" id="pricing-chk-all" title="Selecionar todos"></th><th class="ps-sort" data-sort="sku">SKU${_a('sku')}</th><th>EAN</th><th class="col-prod ps-sort" data-sort="produto">Produto${_a('produto')}</th><th class="ps-sort" data-sort="marca">Marca${_a('marca')}</th><th class="num col-custo ps-sort" data-sort="custo">Custo${_a('custo')}</th><th class="num ps-sort" data-sort="estoque" title="Estoque atual (vermelho=zero, amarelo=abaixo do mínimo)">Estoque${_a('estoque')}</th>${this.mkts().map(m=>`<th class="num mk-h ps-sort ${this._mkClass(m)}" data-sort="mkt:${m}"><i class="fa-solid ${(MKT_BRAND[m]||{}).ic||''}"></i> ${m}${_a('mkt:'+m)}</th>`).join('')}</tr>`;
+    const head=`<tr>
+      <th style="width:32px"><input type="checkbox" id="pricing-chk-all" title="Selecionar todos"></th>
+      <th class="ps-sort" data-sort="sku">SKU${_a('sku')}</th>
+      <th class="col-prod ps-sort" data-sort="produto">Produto${_a('produto')}</th>
+      <th class="ps-sort" data-sort="marca">Marca${_a('marca')}</th>
+      <th class="num col-custo ps-sort" data-sort="custo">Custo${_a('custo')}</th>
+      ${this.mkts().map(m=>`<th class="num mk-h ps-sort ${this._mkClass(m)}" data-sort="mkt:${m}" style="min-width:130px"><i class="fa-solid ${(MKT_BRAND[m]||{}).ic||''}"></i> ${m}${_a('mkt:'+m)}</th>`).join('')}
+    </tr>`;
     const _vend={}; (State.enriched||[]).forEach(v=>{ const _sk=''+v.sku; _vend[_sk]=(_vend[_sk]||0)+(v.qtd||0); });
     const body=prods.map(p=>{
       const cells=this.mkts().map(m=>{
-        const cfg=this.cfg(m), sug=p.custo>0?this.priceForMargin(cfg,p.custo,t):null, cur=this._price(p.sku,m), dsc=this._desc(p.sku,m);
-        const val=cur!=null?cur:(p.pv>0?p.pv:(sug!=null?sug:''));
-        // stats reais do histórico de vendas (SKU + canal)
+        const cfg=this.cfg(m), sug=p.custo>0?this.priceForMargin(cfg,p.custo,t):null;
+        const cur=this._price(p.sku,m); // preço personalizado para este canal
+        const hasCustom=cur!=null;
+        // preço efetivo: personalizado > PV ERP > sugestão
+        const val=hasCustom?cur:(p.pv>0?p.pv:(sug!=null?sug:''));
         const rs=this._skuStat(p.sku,m);
-        // ── LINHA 1: preço editável ──
-        const inputEl=`<input class="ptest" type="number" step="0.01" data-sku="${p.sku}" data-m="${m}" value="${val!==''?(+val).toFixed(2):''}" placeholder="${sug!=null?sug.toFixed(2):'sem preço'}">`;
-        // ── LINHA 2: margem + lucro (real se tem histórico, simulada se não tem) ──
-        let margemLine='<span style="color:var(--txt-3);font-size:11px">—</span>';
+        // Label do tipo de preço
+        const lbl=hasCustom
+          ? `<span class="mg-preco-lbl mg-lbl-custom">Personalizado</span>`
+          : `<span class="mg-preco-lbl mg-lbl-erp">PV ERP</span>`;
+        const inputEl=`<div class="mg-preco-wrap">${lbl}<input class="ptest" type="number" step="0.01" data-sku="${p.sku}" data-m="${m}" value="${val!==''?(+val).toFixed(2):''}" placeholder="${sug!=null?U.brl(sug):'—'}" style="width:90px"></div>`;
+        // Margem — real (histórico) ou simulada
+        let margemLine='<span class="mg-margem mg-nd">sem histórico</span>';
         if(rs && rs.n>0){
-          // usa margem real do histórico (já calculada com taxas/custos reais)
-          const mc2=rs.margemReal>=alvo?'pos':rs.margemReal>=0?'warn-t':'neg';
-          const lucroFmt=rs.lucro>=0?'+'+U.brl(rs.lucro):U.brl(rs.lucro);
-          margemLine=`<span class="ptm ${mc2}" style="font-size:12px;font-weight:700">${U.pct(rs.margemReal)}</span><span style="color:var(--txt-3);font-size:11px;margin-left:4px">${lucroFmt}</span>`;
-        } else if(val!==''&&p.custo>0){
-          // sem histórico: usa simulação com taxas configuradas
-          const r=this.calc(cfg,p.custo,+val,this._ov(p.sku,m));
-          const mc2=r.margemPct>=alvo?'pos':r.margemPct>=0?'warn-t':'neg';
-          margemLine=`<span class="ptm ${mc2}" style="font-size:12px;font-weight:700">${U.pct(r.margemPct)}</span><span style="color:var(--txt-3);font-size:11px;margin-left:4px">${U.brl(r.margem||0)}</span><span style="color:var(--txt-3);font-size:10px;margin-left:3px">(sim)</span>`;
-        }
-        // ── LINHA 3: histórico de vendas ou sugestão ──
-        let histLine='';
-        if(rs && rs.n>0){
-          // formatar data curta da última venda
+          const mc=rs.margemReal>=alvo?'mg-pos':rs.margemReal>=0?'mg-warn':'mg-neg';
           const dtParts=(rs.lastData||'').split('-');
           const dtFmt=dtParts.length===3?`${dtParts[2]}/${dtParts[1]}`:'';
-          const lastStr=rs.lastPreco>0?`${U.brl(rs.lastPreco)} · `:'';
-          histLine=`<div style="font-size:10px;color:var(--txt-3);margin-top:3px;text-align:right">${lastStr}${rs.qtd}un · ${rs.n}v${dtFmt?' · '+dtFmt:''}</div>`;
-        } else {
-          // sem venda: mostrar sugestão de preço
-          const sugTxt=sug!=null?`sug ${U.brl(sug)}`:'sem venda';
-          histLine=`<div style="font-size:10px;color:var(--txt-3);margin-top:3px;text-align:right;font-style:italic">${sugTxt}</div>`;
+          margemLine=`<div class="mg-margem ${mc}">${U.pct(rs.margemReal)} <span style="font-weight:400;font-size:10.5px;color:var(--txt-3)">(real · ${rs.qtd}un)</span></div>
+          <div class="mg-hist">Últ: ${rs.lastPreco>0?U.brl(rs.lastPreco):'?'}${dtFmt?' · '+dtFmt:''} · ${rs.n} pedidos</div>`;
+        } else if(val!==''&&p.custo>0){
+          const r=this.calc(cfg,p.custo,+val,this._ov(p.sku,m));
+          const mc=r.margemPct>=alvo?'mg-pos':r.margemPct>=0?'mg-warn':'mg-neg';
+          margemLine=`<div class="mg-margem ${mc}">${U.pct(r.margemPct)} <span style="font-weight:400;font-size:10.5px;color:var(--txt-3)">(sim · ${U.brl(r.margem||0)})</span></div>
+          <div class="mg-hist">${!_vend[p.sku]?'Sem vendas neste canal':''}</div>`;
         }
-        return `<td class="num pcell mk-c ${this._mkClass(m)}" data-label="${m}">
+        return `<td class="mg-cell ${this._mkClass(m)}" data-label="${m}">
           ${inputEl}
-          <div data-mt="${p.sku}|${m}" style="margin-top:4px;display:flex;align-items:center;justify-content:flex-end;flex-wrap:wrap;gap:2px">${margemLine}</div>
-          ${histLine}</td>`;
+          <div data-mt="${p.sku}|${m}">${margemLine}</div>
+        </td>`;
       }).join('');
-      const estStr=p.estoque!=null?(p.estoque===0?'<span style="color:var(--red);font-weight:700">0</span>':(p.estoqueMini!=null&&p.estoque<=p.estoqueMini?`<span style="color:#E0A100;font-weight:600">${p.estoque}</span>`:`${p.estoque}`)):'—';
-      return `<tr><td style="width:32px"><input type="checkbox" class="pricing-row-chk" data-sku="${p.sku}"></td><td class="mono" data-label="SKU"><span class="pricing-skuv">${p.sku}</span> <button type="button" class="pricing-edit" data-sku="${p.sku}" title="Editar cadastro"><i class="fa-solid fa-pen"></i></button></td><td class="mono small" data-label="EAN">${p.ean||'—'}</td><td class="col-prod pricing-openprod" data-label="Produto" data-sku="${p.sku}" title="Ver raio-X do produto (histórico)">${p.produto||''}${this._badges(p,_vend,alvo)}</td><td class="small" data-label="Marca">${p.marca||'—'}</td><td class="num col-custo" data-label="Custo">${U.brl(p.custo)}</td><td class="num" data-label="Estoque" title="Estoque atual / mínimo: ${p.estoque!=null?p.estoque:'?'} / ${p.estoqueMini!=null?p.estoqueMini:'?'}">${estStr}</td>${cells}</tr>`;
+      // Status resumido para a linha
+      const hasVenda=!!_vend[p.sku];
+      const statusTags=[];
+      if(!(p.custo>0)) statusTags.push('<span style="color:#E5484D;font-size:10px">sem custo</span>');
+      if(!hasVenda) statusTags.push('<span style="color:var(--txt-3);font-size:10px">sem venda</span>');
+      const statusStr=statusTags.length?` <span style="display:inline-flex;gap:4px;margin-left:6px">${statusTags.join('')}</span>`:'';
+      return `<tr>
+        <td style="width:32px"><input type="checkbox" class="pricing-row-chk" data-sku="${p.sku}"></td>
+        <td class="mono" style="font-size:12px"><span class="pricing-skuv">${p.sku}</span> <button type="button" class="pricing-edit" data-sku="${p.sku}" title="Editar"><i class="fa-solid fa-pen"></i></button></td>
+        <td class="col-prod pricing-openprod" data-label="Produto" data-sku="${p.sku}" title="Ver raio-X" style="line-height:1.3;cursor:pointer">${p.produto||''}${statusStr}</td>
+        <td style="font-size:12px;color:var(--txt-2)">${p.marca||'—'}</td>
+        <td class="num col-custo">${U.brl(p.custo)}</td>
+        ${cells}
+      </tr>`;
     }).join('');
-    tb.innerHTML=head+(body||'<tr><td colspan="9" class="muted">Nenhum produto no filtro.</td></tr>');
+    tb.innerHTML=`<thead>${head}</thead><tbody>${body||`<tr><td colspan="${4+this.mkts().length}" class="muted" style="text-align:center;padding:20px">Nenhum produto no filtro.</td></tr>`}</tbody>`;
     tb.querySelectorAll('input.ptest').forEach(inp=>inp.oninput=()=>this._editCell(inp,tb));
     tb.querySelectorAll('th.ps-sort').forEach(th=>th.onclick=()=>{ const c=th.dataset.sort; if(this._sort&&this._sort.col===c){ this._sort.dir*=-1; } else { this._sort={col:c,dir:(c==='produto'||c==='marca')?1:-1}; } this._page=1; this.renderTable(); });
     tb.querySelectorAll('td.pricing-openprod').forEach(td=>td.onclick=()=>this._raioX(td.dataset.sku));
     tb.querySelectorAll('button.pricing-edit').forEach(b=>b.onclick=e=>{ e.stopPropagation(); this._addModal(b.dataset.sku); });
-    // ── seleção em lote ──
+    // seleção em lote
     const _updateBulkBtn=()=>{
       const sel=[...tb.querySelectorAll('.pricing-row-chk:checked')];
       const btn=document.getElementById('pricing-bulk-edit');
@@ -4647,6 +4838,23 @@ const Pricing = {
     };
     bar.querySelectorAll('.ptab').forEach(b=>b.onclick=()=>show(b.dataset.ptab));
     show(cur);
+    // Sub-tabs do Catálogo
+    this._initCatSubTabs();
+  },
+  _initCatSubTabs(){
+    const container=document.getElementById('ptab-cat'); if(!container) return;
+    if(container._cstReady) return;
+    container._cstReady=true;
+    const showCst=k=>{
+      container.querySelectorAll('.cat-subtab').forEach(b=>b.classList.toggle('active',b.dataset.cst===k));
+      container.querySelectorAll('.cat-subpane').forEach(p=>p.classList.toggle('off',p.id!=='cst-'+k));
+      localStorage.setItem('gbk-cat-sub',k);
+      if(k==='estoque') this._renderEst();
+      if(k==='margens'){ this.renderTable(); }
+    };
+    container.querySelectorAll('.cat-subtab').forEach(b=>b.onclick=()=>showCst(b.dataset.cst));
+    const saved=localStorage.getItem('gbk-cat-sub')||'estoque';
+    showCst(saved);
   },
   _badges(p,vend,alvo){
     const b=[];
@@ -5286,8 +5494,8 @@ const Pricing = {
     this.renderCards(); this.renderTable(); this._toggleBanner();
   },
 
-  _fillBrands(){
-    const sel=document.getElementById('pricing-brand'); if(!sel) return;
+  _fillBrands(id='pricing-brand'){
+    const sel=document.getElementById(id); if(!sel) return;
     const cur=sel.value;
     const brands=[...new Set(this.productList().map(p=>p.marca).filter(Boolean))].sort((a,b)=>(''+a).localeCompare(b,'pt-BR'));
     sel.innerHTML='<option value="">Todas as marcas</option>'+brands.map(b=>`<option value="${(''+b).replace(/"/g,'&quot;')}">${b}</option>`).join('');
@@ -5296,30 +5504,40 @@ const Pricing = {
   _editCell(inp,tb){
     const sku=inp.dataset.sku, m=inp.dataset.m;
     const p=this.productList().find(x=>x.sku===sku), custo=p?p.custo:0, pv=p?p.pv:0;
-    if(!(pv>0)){ UI.toast('warn','Sem preço de tabela','Cadastre o preço de tabela (ERP) deste produto para trabalhar com desconto.'); inp.value=''; return; }
     const w=this._ensureWork(); w[sku]=w[sku]||{};
     const v=U.parseNum(inp.value);
-    if(inp.value===''||!(v>0)){ delete w[sku][m]; } else { w[sku][m]=+(((pv-v)/pv)*100).toFixed(4); }
+    // Permite editar mesmo sem PV ERP — salva como preço absoluto (desconto=0 se igual ao PV, negativo se acima)
+    if(inp.value===''||!(v>0)){ delete w[sku][m]; } else { w[sku][m]=pv>0?(((pv-v)/pv)*100).toFixed(4)*1:(-9999+(+v)); }
     this._dirty=true; this._toggleBanner();
     const alvo=this.target();
-    // atualizar bloco de margem+lucro (data-mt)
+    // Atualizar label PV ERP / Personalizado
+    const lblEl=inp.closest('.mg-preco-wrap');
+    if(lblEl){
+      const lbl=lblEl.querySelector('.mg-preco-lbl');
+      if(lbl){
+        const isCustom=(inp.value!==''&&v>0);
+        lbl.className='mg-preco-lbl '+(isCustom?'mg-lbl-custom':'mg-lbl-erp');
+        lbl.textContent=isCustom?'Personalizado':'PV ERP';
+      }
+    }
+    // atualizar bloco de margem
     const cell=tb.querySelector(`[data-mt="${sku}|${m}"]`);
     if(cell){
       const rs=this._skuStat(sku,m);
       if(inp.value===''||!(v>0)){
-        cell.innerHTML='<span style="color:var(--txt-3);font-size:11px">—</span>';
+        cell.innerHTML='<span class="mg-margem mg-nd">—</span>';
       } else if(rs && rs.n>0){
-        // recalcular margem real com novo preço (mantém taxas reais do histórico)
         const cfgReal=Object.assign({},this.cfg(m),{fee:rs.feePct,frete:rs.freteMed});
         const rReal=this.calc(cfgReal,custo,v,this._ov(sku,m));
-        const mc2=rReal.margemPct>=alvo?'pos':rReal.margemPct>=0?'warn-t':'neg';
-        const lucroFmt=rReal.margem>=0?'+'+U.brl(rReal.margem):U.brl(rReal.margem);
-        cell.innerHTML=`<span class="ptm ${mc2}" style="font-size:12px;font-weight:700">${U.pct(rReal.margemPct)}</span><span style="color:var(--txt-3);font-size:11px;margin-left:4px">${lucroFmt}</span>`;
+        const mc=rReal.margemPct>=alvo?'mg-pos':rReal.margemPct>=0?'mg-warn':'mg-neg';
+        const dtParts=(rs.lastData||'').split('-');
+        const dtFmt=dtParts.length===3?`${dtParts[2]}/${dtParts[1]}`:'';
+        cell.innerHTML=`<div class="mg-margem ${mc}">${U.pct(rReal.margemPct)} <span style="font-weight:400;font-size:10.5px;color:var(--txt-3)">(real · ${rs.qtd}un)</span></div>
+          <div class="mg-hist">Últ: ${rs.lastPreco>0?U.brl(rs.lastPreco):'?'}${dtFmt?' · '+dtFmt:''} · ${rs.n} pedidos</div>`;
       } else {
-        // sem histórico: simulação com taxas configuradas
         const r=this.calc(this.cfg(m),custo,v,this._ov(sku,m));
-        const mc2=r.margemPct>=alvo?'pos':r.margemPct>=0?'warn-t':'neg';
-        cell.innerHTML=`<span class="ptm ${mc2}" style="font-size:12px;font-weight:700">${U.pct(r.margemPct)}</span><span style="color:var(--txt-3);font-size:11px;margin-left:4px">${U.brl(r.margem||0)}</span><span style="color:var(--txt-3);font-size:10px;margin-left:3px">(sim)</span>`;
+        const mc=r.margemPct>=alvo?'mg-pos':r.margemPct>=0?'mg-warn':'mg-neg';
+        cell.innerHTML=`<div class="mg-margem ${mc}">${U.pct(r.margemPct)} <span style="font-weight:400;font-size:10.5px;color:var(--txt-3)">(sim · ${U.brl(r.margem||0)})</span></div>`;
       }
     }
   },
@@ -5379,7 +5597,15 @@ const Pricing = {
       this.render();
     }catch(e){ UI.toast('err','Falha ao importar preços',e.message||''); }
   },
-  render(){ this._initTabs(); this.__pv=null; const tx=document.getElementById('pricing-tax'); if(tx&&tx.value==='') tx.value=this._defaultTax(); this.renderFees(); this.renderPicker(); this.renderCards(); this.renderTable(); }
+  render(){
+    // Reset flag para permitir que _initCatSubTabs re-inicialize ao trocar de view
+    const c=document.getElementById('ptab-cat'); if(c) c._cstReady=false;
+    this._initTabs();
+    this.__pv=null;
+    const tx=document.getElementById('pricing-tax'); if(tx&&tx.value==='') tx.value=this._defaultTax();
+    this.renderFees(); this.renderPicker(); this.renderCards();
+    // renderTable e _renderEst são chamados pelo _initCatSubTabs conforme sub-tab ativa
+  }
 };
 
 /* ============================================================
