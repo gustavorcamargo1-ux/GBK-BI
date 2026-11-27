@@ -799,10 +799,10 @@ body.role-viewer .pricing-edit{display:none}
 .kb-card.dragging{opacity:.45}
 /* cor de destaque por tarefa */
 .kb-card.tc-cor{border-left-color:var(--tc) !important}
-.tc-swatch{display:inline-block;width:22px;height:22px;border-radius:50%;border:2px solid transparent;cursor:pointer;vertical-align:middle;transition:transform .12s,border-color .12s}
-.tc-swatch:hover{transform:scale(1.18)}
-.tc-swatch.ativo{border-color:var(--txt-1);transform:scale(1.18)}
-.tc-swatch.none-swatch{background:transparent;border:2px dashed var(--line)}
+.tc-swatch{display:inline-block;width:26px;height:26px;border-radius:50%;border:3px solid transparent;cursor:pointer;vertical-align:middle;transition:transform .12s,border-color .12s;box-shadow:0 1px 3px rgba(0,0,0,.25)}
+.tc-swatch:hover{transform:scale(1.22)}
+.tc-swatch.ativo{border-color:var(--txt-1);transform:scale(1.22);box-shadow:0 0 0 2px var(--txt-1)}
+.tc-swatch.none-swatch{background:transparent;border:2px dashed var(--line);box-shadow:none}
 .tc-row{display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin-top:2px}
 /* lista: linha colorida */
 .lst-row.tc-cor{background:color-mix(in srgb,var(--tc) 10%,transparent)}
@@ -6592,15 +6592,18 @@ const AtrasadasBanner = {
 };
 const TAREFA_PRIO = { alta:{l:'Alta'}, media:{l:'Média'}, baixa:{l:'Baixa'} };
 const TC_CORES = [
-  {v:'',    label:'Sem cor'},
-  {v:'#E5484D', label:'Vermelho'},
-  {v:'#F76B15', label:'Laranja'},
-  {v:'#E0A100', label:'Amarelo'},
-  {v:'#30A46C', label:'Verde'},
-  {v:'#3B82F6', label:'Azul'},
-  {v:'#8B5CF6', label:'Roxo'},
-  {v:'#EC4899', label:'Rosa'},
-  {v:'#64748B', label:'Cinza'},
+  {v:'',        label:'Sem cor'},
+  {v:'#EF2222', label:'Vermelho'},
+  {v:'#FF6B00', label:'Laranja'},
+  {v:'#FFD000', label:'Amarelo'},
+  {v:'#00C853', label:'Verde'},
+  {v:'#00B0FF', label:'Azul claro'},
+  {v:'#1565C0', label:'Azul escuro'},
+  {v:'#AA00FF', label:'Roxo'},
+  {v:'#F50057', label:'Pink'},
+  {v:'#00BFA5', label:'Teal'},
+  {v:'#795548', label:'Marrom'},
+  {v:'#546E7A', label:'Cinza'},
 ];
 function tcSwatches(corAtual){
   return TC_CORES.map(c=>c.v===''
